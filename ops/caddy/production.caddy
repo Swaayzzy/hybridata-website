@@ -1,0 +1,17 @@
+# Production site. NOT active until go-live: enable it with
+#   sudo hybridata-enable-production
+# which links this file into /etc/caddy/enabled/ and reloads Caddy.
+# Do this only after the apex and www A records point at this server (ops/DNS.md).
+# Uses the (site_common) and (static_files) snippets from the main Caddyfile.
+
+hybridatasolutions.com {
+	root * /srv/hybridata/production
+	import site_common
+	import static_files
+}
+
+# Same as the Netlify rule in site/_redirects: www -> apex, 308, path and query kept.
+www.hybridatasolutions.com {
+	import site_common
+	redir https://hybridatasolutions.com{uri} 308
+}

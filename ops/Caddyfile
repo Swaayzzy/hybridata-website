@@ -1,0 +1,42 @@
+# hybridatasolutions.com - installed to /etc/caddy/Caddyfile by ops/setup-server.sh.
+# Only the staging site is active here. The apex/www site lives in ops/caddy/production.caddy
+# and is switched on at go-live (see ops/README.md), so Caddy does not try to get certificates
+# for a domain that still points at the old server.
+
+# Headers ported from site/_headers (all paths), plus -Server.
+(site_common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Content-Security-Policy "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; img-src 'self'; connect-src 'self'; font-src 'self'; style-src 'self'; script-src 'self'"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		-Server
+	}
+}
+
+# Static files only: no directory listing (no "browse"), dotfiles and Netlify config files hidden.
+(static_files) {
+	file_server {
+		hide .* _headers _redirects
+	}
+}
+
+staging.hybridatasolutions.com {
+	root * /srv/hybridata/staging
+	import site_common
+
+	header X-Robots-Tag "noindex, nofollow"
+
+	# Basic auth. The bcrypt hash comes from /etc/caddy/staging.env (root-only, mode 600)
+	# through a systemd drop-in. If the variable is empty, Caddy refuses to start.
+	basic_auth {
+		review {$STAGING_AUTH_HASH}
+	}
+
+	import static_files
+}
+
+# Go-live: the apex and www blocks (ops/caddy/production.caddy) are linked into this directory.
+import /etc/caddy/enabled/*.caddy
