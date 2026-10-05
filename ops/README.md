@@ -93,6 +93,6 @@ STAGING_AUTH_HASH=$(printf 'pw\npw\n' | caddy hash-password) caddy validate --co
 
 - Adam: keep or remove `adam@velaramarketing.com` as a contact-form recipient (LIGHT-26).
 - SPF/DKIM and a zone export before go-live (`DNS.md`).
-- Decisions for Adam (not changed by the Web team): branch protection and 2FA on the GitHub repo (anyone who can push to `staging` controls what `deploy-staging.sh` deploys, though it can no longer run code); whether `ops/` and `DNS.md` should move to a private repo.
+- Decisions for Adam (not changed by the Web team): branch protection and 2FA on the GitHub repo (anyone who can push to `staging` controls what `deploy-staging.sh` deploys, though it never executes code from the repo: only `site/` is exported, and the kit's own `staging-noindex.sh` treats every file name as data); whether `ops/` and `DNS.md` should move to a private repo.
 - Backups of `/etc/caddy` and the Caddy certificate store (`/var/lib/caddy`) are not set up.
 - Caddy is not pinned to a version (apt upgrades it with the system).
