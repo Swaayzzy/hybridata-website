@@ -1,0 +1,11 @@
+# Production (main): no build step. Netlify publishes site/ exactly as committed.
+# Production auto-publishing is locked in Netlify; Adam publishes each deploy by hand.
+[build]
+  publish = "site"
+
+# Staging and any other non-production deploy: hide from search engines.
+[context.branch-deploy]
+  command = "bash scripts/staging-noindex.sh"
+
+[context.deploy-preview]
+  command = "bash scripts/staging-noindex.sh"
