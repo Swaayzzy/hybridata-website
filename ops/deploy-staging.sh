@@ -32,6 +32,9 @@ cleanup() { rm -rf "$work" "$new" "$new.old"; [ -z "$sha_tmp" ] || rm -f "$sha_t
 trap cleanup EXIT
 
 export_tree "$sha" "$work/src" site
+if [ -n "$(find "$work/src/site" -name '-*' -print -quit)" ]; then
+  die "the commit has a file whose name starts with '-'; refusing to deploy it"
+fi
 bash "$OPS_DIR/staging-noindex.sh" "$work/src/site"
 
 # Staging must never be indexable: fail instead of shipping a page without the tag.

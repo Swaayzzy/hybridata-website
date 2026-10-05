@@ -59,7 +59,12 @@ install -m 644 -o root -g root "$tmp_dir/caddy.gpg" "$KEYRING"
 printf 'deb [signed-by=%s] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main\n' "$KEYRING" > "$tmp_dir/caddy-stable.list"
 install -m 644 -o root -g root "$tmp_dir/caddy-stable.list" "$APT_LIST"
 apt-get update -qq
+caddy_was_installed=0
+dpkg -s caddy >/dev/null 2>&1 && caddy_was_installed=1
 apt-get install -y -qq caddy
+# The package starts Caddy with its default config (admin API on TCP 127.0.0.1:2019). On a first install,
+# stop it now so that port is not open while the password prompt below waits for Adam.
+if [ "$caddy_was_installed" -eq 0 ]; then systemctl stop caddy; fi
 
 # ---------------------------------------------------------------- 2. Python packages
 say "Installing python3-venv python3-pip python3-full (for the App Builder / LIGHT-37)"
@@ -222,6 +227,7 @@ admin_socket_private() {
     && ! runuser -u "$AGENT_USER" -- curl -s --max-time 3 --unix-socket "$ADMIN_SOCK" http://127.0.0.1/config/
 }
 reload_works() { systemctl reload caddy && sleep 1 && systemctl is-active --quiet caddy; }
+exec_reload_ok() { systemctl show caddy -p ExecReload --value | grep -q -- 'reload --config /etc/caddy/Caddyfile --force'; }
 protect_home_set() { [ "$(systemctl show caddy -p ProtectHome --value)" = yes ]; }
 python_ok() { dpkg -s python3-venv python3-pip python3-full && python3 -c 'import venv, ensurepip'; }
 # shellcheck source=/dev/null
@@ -240,6 +246,7 @@ check "new files in staging/ inherit group caddy (setgid)" setgid_inherits
 check "caddy can read the tree but not write to it" caddy_read_only
 check "sudo -u caddy test ! -r $AGENT_HOME (and no traverse)" caddy_cannot_read_home
 check "Caddy service has ProtectHome=yes (no access to /home at all)" protect_home_set
+check "packaged ExecReload is 'caddy reload --config /etc/caddy/Caddyfile --force' (works with the socket)" exec_reload_ok
 check "admin API is not listening on TCP 2019" admin_not_on_tcp
 check "agent cannot reach the admin API: curl http://127.0.0.1:2019/config/ fails" agent_cannot_reach_admin_tcp
 check "admin socket $ADMIN_SOCK is 600 caddy, in a 700 caddy directory; agent cannot open it" admin_socket_private

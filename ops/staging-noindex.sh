@@ -8,7 +8,13 @@ set -euo pipefail
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then echo "usage: $0 <site directory>" >&2; exit 1; fi
 cd "$1"
 
-# "./" prefix: a file named like an option (e.g. "--file=x.html") is never read as one.
+# File names are data. Refuse names that start with "-" (they could be read as options by sed/grep).
+if [ -n "$(find . -name '-*' -print -quit)" ]; then
+  echo "staging-noindex: refusing a file whose name starts with '-'" >&2
+  exit 1
+fi
+
+# "./" prefix and "--": a file named like an option is never read as one.
 for f in ./*.html; do
   [ -e "$f" ] || continue
   grep -q -- 'name="robots" content="noindex' "$f" && continue
