@@ -21,6 +21,8 @@ Keep it somewhere safe. It is the way back if a record is changed by mistake.
 
 Add this record **before** running `setup-server.sh` if you can. Caddy requests the staging certificate as soon as it starts and retries if the record is not there yet, which is harmless but noisy. Do not add an AAAA record.
 
+**Firewall ports.** If a Hetzner Cloud Firewall is attached to the server, it must allow inbound **TCP 80**, **TCP 443** and **UDP 443** (UDP 443 is HTTP/3; browsers fall back to TCP if it is closed). `setup-server.sh` opens the same ports in ufw only if ufw is already active.
+
 Check from any computer after a few minutes: `nslookup staging.hybridatasolutions.com` should show `2.28.98.23`.
 
 ## Step 2: a day before go-live: lower the TTL

@@ -14,6 +14,13 @@ DROPIN_DIR=/etc/systemd/system/caddy.service.d
 DROPIN=$DROPIN_DIR/staging-env.conf
 KEYRING=/usr/share/keyrings/caddy-stable-archive-keyring.gpg
 APT_LIST=/etc/apt/sources.list.d/caddy-stable.list
+# Primary-key fingerprint of the Caddy "stable" apt repo signing key (Caddy Web Server <contact@caddyserver.com>).
+# Hard-coded on purpose; the downloaded key must match it exactly. Sources, checked 2026-10-05:
+#  1. Cloudsmith, host of the official Caddy repo: https://api.cloudsmith.io/v1/repos/caddy/stable/gpg/ ("fingerprint")
+#  2. Ubuntu keyserver: https://keyserver.ubuntu.com/pks/lookup?op=vindex&fingerprint=on&search=0x65760C51EDEA2017CEA2CA15155B6D79CA56EA34
+# Caddy's own install docs (https://caddyserver.com/docs/install) do not publish this fingerprint.
+CADDY_KEY_FPR=65760C51EDEA2017CEA2CA15155B6D79CA56EA34
+ADMIN_SOCK=/run/caddy/admin.sock
 RESTART_NEEDED=0
 FAILS=0
 
@@ -37,14 +44,20 @@ say "Installing Caddy from the official Cloudsmith apt repo"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl gpg ca-certificates
-tmp_key="$(mktemp)"; tmp_list="$(mktemp)"
-trap 'rm -f "$tmp_key" "$tmp_list"' EXIT
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' -o "$tmp_key"
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' -o "$tmp_list"
-grep -q 'signed-by=' "$tmp_list" || die "unexpected apt list from Cloudsmith (no signed-by)"
-gpg --batch --yes --dearmor -o "$KEYRING" "$tmp_key"
-chmod 644 "$KEYRING"
-install -m 644 "$tmp_list" "$APT_LIST"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' -o "$tmp_dir/caddy.asc"
+# Primary-key fingerprints of every key in a file (armored or binary), one per line.
+key_fprs() { gpg --batch --show-keys --with-colons "$1" 2>/dev/null | awk -F: '$1=="pub"{p=1;next} $1=="fpr"&&p{print $10;p=0}'; }
+got="$(key_fprs "$tmp_dir/caddy.asc")" || true
+[ "$got" = "$CADDY_KEY_FPR" ] || die "Caddy apt key fingerprint mismatch (expected $CADDY_KEY_FPR, got: ${got:-none}); nothing was installed"
+gpg --batch --yes --dearmor -o "$tmp_dir/caddy.gpg" "$tmp_dir/caddy.asc"
+got="$(key_fprs "$tmp_dir/caddy.gpg")" || true
+[ "$got" = "$CADDY_KEY_FPR" ] || die "dearmored Caddy key does not match the pinned fingerprint; nothing was installed"
+install -m 644 -o root -g root "$tmp_dir/caddy.gpg" "$KEYRING"
+# Our own apt line, not the list file downloaded from the vendor.
+printf 'deb [signed-by=%s] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main\n' "$KEYRING" > "$tmp_dir/caddy-stable.list"
+install -m 644 -o root -g root "$tmp_dir/caddy-stable.list" "$APT_LIST"
 apt-get update -qq
 apt-get install -y -qq caddy
 
@@ -53,37 +66,34 @@ say "Installing python3-venv python3-pip python3-full (for the App Builder / LIG
 apt-get install -y -qq python3-venv python3-pip python3-full
 
 # ---------------------------------------------------------------- 3. Directory tree
-say "Creating $BASE (owner $AGENT_USER, group caddy, dirs 2750, files 640)"
-install -d -o "$AGENT_USER" -g caddy -m 2750 "$BASE" "$BASE/releases" "$BASE/staging"
-
-if [ ! -e "$BASE/releases/initial" ]; then
-  install -d -o "$AGENT_USER" -g caddy -m 2750 "$BASE/releases/initial"
+# Root only sets owner and modes when $BASE is first created. On a re-run the tree is agent-owned and
+# agent-writable, so root must not chown/chmod/write inside it (a swapped-in symlink could redirect that);
+# the summary at the end only checks and reports.
+first_run=0
+if [ ! -e "$BASE" ] && [ ! -L "$BASE" ]; then
+  first_run=1
+  say "Creating $BASE (owner $AGENT_USER, group caddy, dirs 2750, files 640)"
+  install -d -o root -g caddy -m 2750 "$BASE" "$BASE/releases" "$BASE/staging" "$BASE/releases/initial"
   cat > "$BASE/releases/initial/index.html" <<'HTML'
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow">
 <title>Coming soon</title></head><body><p>This site is being set up.</p></body></html>
 HTML
-fi
-if [ -z "$(find "$BASE/staging" -mindepth 1 -print -quit)" ]; then
   cat > "$BASE/staging/index.html" <<'HTML'
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow">
 <title>Staging</title></head><body><p>Staging is set up. Nothing has been deployed yet.</p></body></html>
 HTML
-fi
-# Never repoint an existing production link on a re-run; only create it if missing.
-if [ -L "$BASE/production" ]; then
-  :
-elif [ -e "$BASE/production" ]; then
-  die "$BASE/production exists and is not a symlink; fix it by hand"
-else
   ln -s releases/initial "$BASE/production"
+  # Nothing else exists in the new tree yet, so this cannot race with anyone.
+  chown -hR "$AGENT_USER:caddy" "$BASE"
+  find "$BASE" -type d ! -type l -exec chmod 2750 {} +
+  find "$BASE" -type f ! -type l -exec chmod 640 {} +
+else
+  say "$BASE already exists: not changing owners or modes (checked in the summary)"
+  if [ ! -d "$BASE" ] || [ -L "$BASE" ]; then die "$BASE is not a plain directory; fix it by hand"; fi
+  [ -L "$BASE/production" ] || die "$BASE/production is not a symlink; fix it by hand"
 fi
-chown -h "$AGENT_USER:caddy" "$BASE/production"
-# Normalise ownership and modes (everything except symlinks). Caddy gets read only.
-chown -R "$AGENT_USER:caddy" "$BASE"
-find "$BASE" -type d -exec chmod 2750 {} +
-find "$BASE" -type f -exec chmod 640 {} +
 
 # ---------------------------------------------------------------- 4. Keep Caddy out of the agent's home
 say "Checking that the caddy user cannot read $AGENT_HOME"
@@ -124,7 +134,9 @@ fi
 chown root:root "$ENV_FILE"; chmod 600 "$ENV_FILE"
 
 mkdir -p "$DROPIN_DIR"
-want_dropin=$'[Service]\nEnvironmentFile='"$ENV_FILE"$'\n'
+# EnvironmentFile: the staging hash. ProtectHome: Caddy cannot see /home whatever the file modes are.
+# RuntimeDirectory: /run/caddy, owned by caddy and closed to everyone else, holds the admin socket.
+want_dropin=$'[Service]\nEnvironmentFile='"$ENV_FILE"$'\nProtectHome=yes\nRuntimeDirectory=caddy\nRuntimeDirectoryMode=0700\n'
 if [ "$(cat "$DROPIN" 2>/dev/null || true)" != "${want_dropin%$'\n'}" ]; then
   printf '%s' "$want_dropin" > "$DROPIN"
   chmod 644 "$DROPIN"
@@ -158,10 +170,11 @@ if command -v ufw >/dev/null 2>&1 && ufw status | head -n1 | grep -qi '^Status: 
   ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp >/dev/null    # SSH first, so you cannot lock yourself out
   ufw allow 80/tcp >/dev/null
   ufw allow 443/tcp >/dev/null
-  echo "ufw is active: allowed SSH, 80/tcp, 443/tcp"
+  ufw allow 443/udp >/dev/null        # HTTP/3
+  echo "ufw is active: allowed SSH, 80/tcp, 443/tcp, 443/udp (HTTP/3)"
 else
   echo "ufw is not active: left untouched (not enabling it)."
-  echo "If the Hetzner Cloud Firewall is attached to this server, it must allow 80 and 443 too."
+  echo "If the Hetzner Cloud Firewall is attached to this server, it must allow 80/tcp, 443/tcp and 443/udp (HTTP/3) too."
 fi
 
 # ---------------------------------------------------------------- 8. Start Caddy
@@ -185,11 +198,11 @@ no_loose_modes() {
     && [ -z "$(find "$BASE" ! -type l ! -user "$AGENT_USER" -print -quit)" ] \
     && [ -z "$(find "$BASE" ! -type l ! -group caddy -print -quit)" ]
 }
-setgid_inherits() {
-  local t="$BASE/staging/.setup-check.$$"
-  local rc=1
-  if runuser -u "$AGENT_USER" -- touch "$t" && [ "$(stat -c '%G' "$t")" = caddy ]; then rc=0; fi
-  rm -f "$t"
+setgid_inherits() {   # the file is created and removed by the agent user, not by root
+  local t rc=1
+  t="$(runuser -u "$AGENT_USER" -- mktemp -p "$BASE/staging" .setup-check.XXXXXX)" || return 1
+  if [ "$(stat -c '%G' "$t")" = caddy ]; then rc=0; fi
+  runuser -u "$AGENT_USER" -- rm -f "$t"
   return $rc
 }
 prod_target_ok() {
@@ -199,6 +212,17 @@ prod_target_ok() {
 env_file_ok() { [ "$(stat -c '%a %U' "$ENV_FILE")" = "600 root" ]; }
 caddy_cannot_read_home() { as_caddy test ! -r "$AGENT_HOME" && as_caddy test ! -x "$AGENT_HOME"; }
 caddy_read_only() { as_caddy test -r "$BASE/staging/index.html" && as_caddy test ! -w "$BASE/staging" && as_caddy test ! -w "$BASE/releases"; }
+# The admin API must not be reachable by the agent user, on TCP or through the socket.
+admin_not_on_tcp() { ! listening 2019; }
+agent_cannot_reach_admin_tcp() { ! runuser -u "$AGENT_USER" -- curl -s --max-time 3 http://127.0.0.1:2019/config/; }
+admin_socket_private() {
+  [ "$(stat -c '%a %U' "$ADMIN_SOCK")" = "600 caddy" ] \
+    && [ "$(stat -c '%a %U' "$(dirname "$ADMIN_SOCK")")" = "700 caddy" ] \
+    && ! runuser -u "$AGENT_USER" -- test -e "$ADMIN_SOCK" \
+    && ! runuser -u "$AGENT_USER" -- curl -s --max-time 3 --unix-socket "$ADMIN_SOCK" http://127.0.0.1/config/
+}
+reload_works() { systemctl reload caddy && sleep 1 && systemctl is-active --quiet caddy; }
+protect_home_set() { [ "$(systemctl show caddy -p ProtectHome --value)" = yes ]; }
 python_ok() { dpkg -s python3-venv python3-pip python3-full && python3 -c 'import venv, ensurepip'; }
 # shellcheck source=/dev/null
 validate_ok() { ( set -a; . "$ENV_FILE"; set +a; caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile ); }
@@ -211,10 +235,15 @@ check "Caddy service is active" systemctl is-active --quiet caddy
 check "Caddyfile validates" validate_ok
 check "port 80 is listening" listening 80
 check "port 443 is listening" listening 443
-check "$BASE owned by $AGENT_USER:caddy, dirs 2750, files 640" no_loose_modes
+check "$BASE owned by $AGENT_USER:caddy, dirs 2750, files 640 (checked only$( [ "$first_run" -eq 1 ] && echo '; set at creation'))" no_loose_modes
 check "new files in staging/ inherit group caddy (setgid)" setgid_inherits
 check "caddy can read the tree but not write to it" caddy_read_only
 check "sudo -u caddy test ! -r $AGENT_HOME (and no traverse)" caddy_cannot_read_home
+check "Caddy service has ProtectHome=yes (no access to /home at all)" protect_home_set
+check "admin API is not listening on TCP 2019" admin_not_on_tcp
+check "agent cannot reach the admin API: curl http://127.0.0.1:2019/config/ fails" agent_cannot_reach_admin_tcp
+check "admin socket $ADMIN_SOCK is 600 caddy, in a 700 caddy directory; agent cannot open it" admin_socket_private
+check "systemctl reload caddy works with the admin socket" reload_works
 check "$ENV_FILE is mode 600, owned by root" env_file_ok
 check "production symlink -> $(readlink "$BASE/production") (exists, has index.html)" prod_target_ok
 check "Python packages: python3-venv, python3-pip, python3-full, ensurepip" python_ok

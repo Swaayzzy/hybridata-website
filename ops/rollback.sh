@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
 # Point production at the previous release, or at a named one. Run as the agent user.
-#   rollback.sh            previous release
-#   rollback.sh <name>     a named release from releases/
-#   rollback.sh --list     show releases, newest last, active marked with *
+#   rollback.sh                          previous release
+#   rollback.sh <name>                   a named release from releases/
+#   rollback.sh --list                   show releases, newest last, active marked with *
+#   rollback.sh --allow-initial [<name>] allow going back to the "initial" placeholder (it is noindex)
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+list=0 allow_initial=0 name=""
+for a in "$@"; do
+  case $a in
+    --list) list=1 ;;
+    --allow-initial) allow_initial=1 ;;
+    "") die "empty argument" ;;
+    -*) die "unknown option: $a" ;;
+    *) [ -z "$name" ] || die "only one release name is allowed"; name=$a ;;
+  esac
+done
 
 require_agent_user
 require_tree
@@ -18,7 +30,7 @@ before="$(readlink "$ROOT/production" || true)"
 [ -n "$before" ] || die "$ROOT/production is not a symlink"
 current="$(basename "$before")"
 
-if [ "${1:-}" = "--list" ]; then
+if [ "$list" -eq 1 ]; then
   for r in "${releases[@]}"; do
     if [ "$r" = "$current" ]; then printf '* %s\n' "$r"; else printf '  %s\n' "$r"; fi
   done
@@ -26,10 +38,11 @@ if [ "${1:-}" = "--list" ]; then
 fi
 
 target=""
-if [ -n "${1:-}" ]; then
-  [[ $1 =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid release name"
-  [ -d "$ROOT/releases/$1" ] || die "no such release: $1 (try --list)"
-  target=$1
+if [ -n "$name" ]; then
+  # Only the placeholder or a name publish.sh generates. This rules out ".", "..", ".build.N" and any path.
+  [[ $name =~ ^(initial|[0-9]{8}T[0-9]{6}Z-[0-9a-f]{7})$ ]] || die "invalid release name: $name"
+  if [ ! -d "$ROOT/releases/$name" ] || [ -L "$ROOT/releases/$name" ]; then die "no such release: $name (try --list)"; fi
+  target=$name
 else
   prev=""
   for r in "${releases[@]}"; do
@@ -37,6 +50,10 @@ else
     prev=$r
   done
   [ -n "$target" ] || die "no earlier release than $current to roll back to"
+fi
+if [ "$target" = "initial" ]; then
+  [ "$allow_initial" -eq 1 ] || die "refusing to point production at the 'initial' placeholder (it says \"being set up\" and has noindex). Pass --allow-initial if you really mean it"
+  log "WARNING: production will serve the 'initial' placeholder: the site goes dark and carries noindex, so search engines may drop it. Roll forward with: rollback.sh <release> (see --list)"
 fi
 [ "$target" != "$current" ] || die "production already points at $current"
 

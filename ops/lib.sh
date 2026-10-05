@@ -2,6 +2,8 @@
 # Shared helpers, sourced by deploy-staging.sh, publish.sh and rollback.sh. Not run directly.
 # shellcheck disable=SC2034  # variables are used by the scripts that source this file
 
+# ops/ code always comes from the checked-out kit (this directory), never from a deployed commit.
+OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${HYBRIDATA_ROOT:-/srv/hybridata}"
 REPO_URL="${HYBRIDATA_REPO_URL:-https://github.com/Swaayzzy/hybridata-website.git}"
 REPO_DIR="${HYBRIDATA_REPO_DIR:-$HOME/hybridata-website-deploy}"
@@ -34,6 +36,17 @@ sync_repo() {
   TIP_SHA="$(git -C "$REPO_DIR" rev-parse --verify "refs/remotes/origin/$BRANCH^{commit}")"
 }
 
+# require_on_branch <sha> - the commit must be reachable from the fetched branch tip.
+require_on_branch() {
+  git -C "$REPO_DIR" merge-base --is-ancestor "$1" "refs/remotes/origin/$BRANCH" \
+    || die "commit $1 is not on the $BRANCH branch; refusing to use it"
+}
+
+# commit_subject <sha> - the subject line with control characters removed (safe to print).
+commit_subject() {
+  git -C "$REPO_DIR" log -1 --format=%s "$1" | tr -d '[:cntrl:]'
+}
+
 # export_tree <sha> <dest> <path>...  - unpack the given paths of a commit into dest.
 export_tree() {
   local sha=$1 dest=$2
@@ -48,12 +61,16 @@ export_tree() {
 }
 
 # swap_symlink <target> <link> - atomically point <link> at <target>.
+# The temporary link lives in a fresh mktemp directory next to <link>, so no name can be guessed or reused.
 swap_symlink() {
-  local target=$1 link=$2 tmp
-  tmp="$(dirname "$link")/.$(basename "$link").new.$$"
-  rm -f "$tmp"
-  ln -s "$target" "$tmp"
-  mv -T "$tmp" "$link"
+  local target=$1 link=$2 d
+  d="$(mktemp -d -p "$(dirname "$link")" ".swap.XXXXXX")"
+  if ln -s "$target" "$d/link" && mv -T "$d/link" "$link"; then
+    rmdir "$d"
+  else
+    rm -rf "$d"
+    die "could not switch $link"
+  fi
 }
 
 # swap_dirs <new> <live> - atomically exchange two directories (renameat2 RENAME_EXCHANGE).

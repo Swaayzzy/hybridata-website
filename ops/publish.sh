@@ -22,7 +22,7 @@ git -C "$REPO_DIR" cat-file -e "$sha^{commit}" 2>/dev/null || die "commit $sha i
 
 name="$(date -u +%Y%m%dT%H%M%SZ)-${sha:0:7}"
 final="$ROOT/releases/$name"
-build="$ROOT/releases/.build.$$"
+build="$(mktemp -d -p "$ROOT" ".publish.XXXXXX")"
 cleanup() { rm -rf "$build"; }
 trap cleanup EXIT
 [ ! -e "$final" ] || die "release $name already exists"

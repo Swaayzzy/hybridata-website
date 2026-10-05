@@ -3,6 +3,13 @@
 # and is switched on at go-live (see ops/README.md), so Caddy does not try to get certificates
 # for a domain that still points at the old server.
 
+# Global options. The admin API is moved off TCP 127.0.0.1:2019 (open to every local user, including the
+# agent user) onto a unix socket that only the caddy user can open. /run/caddy is created by the systemd
+# drop-in (RuntimeDirectory=caddy, mode 0700) written by setup-server.sh.
+{
+	admin unix//run/caddy/admin.sock|0600
+}
+
 # Headers ported from site/_headers (all paths), plus -Server.
 (site_common) {
 	encode zstd gzip
