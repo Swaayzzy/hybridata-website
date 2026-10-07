@@ -2174,3 +2174,5 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .photo-pair { grid-template-columns: 1fr; }
   .photo-pair img, .service-map-photo .photo-pair img { aspect-ratio: 4 / 3; }
 }
+.testing-band { max-width: 1024px; margin-inline: auto; }
+@media (max-width: 680px) { .testing-band img { aspect-ratio: 546 / 683; } }
