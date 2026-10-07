@@ -2166,3 +2166,13 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .ia-home-pathways *,
   .ia-services-map * { transition: none !important; }
 }
+
+.photo-pair { display: grid; grid-template-columns: 1fr 1fr; }
+.photo-pair img, .service-map-photo .photo-pair img { aspect-ratio: 1 / 1; min-height: 0; }
+.service-hero-pair { display: grid; grid-template-columns: 1fr 1fr; }
+.service-hero-pair picture { display: block; min-height: 0; }
+@media (max-width: 680px) {
+  .photo-pair, .service-hero-pair { grid-template-columns: 1fr; }
+  .photo-pair img, .service-map-photo .photo-pair img { aspect-ratio: 4 / 3; }
+  .service-hero-pair { grid-template-rows: 1fr 1fr; }
+}
