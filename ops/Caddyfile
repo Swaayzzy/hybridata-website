@@ -1,7 +1,8 @@
 # hybridatasolutions.com - installed to /etc/caddy/Caddyfile by ops/setup-server.sh.
-# Only the staging site is active here. The apex/www site lives in ops/caddy/production.caddy
-# and is switched on at go-live (see ops/README.md), so Caddy does not try to get certificates
-# for a domain that still points at the old server.
+# Production only (staging runs on GitHub Pages, not on this server). This file holds the global options
+# and the shared snippets. The apex/www site lives in ops/caddy/production.caddy and is switched on by
+# `hybridata-enable-production` after DNS points at this server (see ops/README.md), so Caddy does not
+# request certificates for a domain that still points at the old server.
 
 # Global options. The admin API is moved off TCP 127.0.0.1:2019 (open to every local user, including the
 # agent user) onto a unix socket that only the caddy user can open. /run/caddy is created by the systemd
@@ -28,21 +29,6 @@
 	file_server {
 		hide .* _headers _redirects
 	}
-}
-
-staging.hybridatasolutions.com {
-	root * /srv/hybridata/staging
-	import site_common
-
-	header X-Robots-Tag "noindex, nofollow"
-
-	# Basic auth. The bcrypt hash comes from /etc/caddy/staging.env (root-only, mode 600)
-	# through a systemd drop-in. If the variable is empty, Caddy refuses to start.
-	basic_auth {
-		review {$STAGING_AUTH_HASH}
-	}
-
-	import static_files
 }
 
 # Go-live: the apex and www blocks (ops/caddy/production.caddy) are linked into this directory.

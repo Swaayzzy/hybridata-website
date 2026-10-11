@@ -1,4 +1,4 @@
-# Production site. NOT active until go-live: enable it with
+# Production site (the active config after go-live). NOT active until DNS points here: enable it with
 #   sudo hybridata-enable-production
 # which links this file into /etc/caddy/enabled/ and reloads Caddy.
 # Do this only after the apex and www A records point at this server (ops/DNS.md).

@@ -13,28 +13,21 @@ Only the records named below change. **Never touch MX or any TXT record** except
 Ask whoever manages SystemDNS for a full export of the zone (or screenshot every record: type, name, value, TTL).
 Keep it somewhere safe. It is the way back if a record is changed by mistake.
 
-## Step 1: now (staging only; does not touch the live site)
+## Step 1: firewall ports (before go-live)
 
-| Type | Name / Host | Value | TTL |
-|---|---|---|---|
-| A | `staging` | `2.28.98.23` | 3600 |
-
-Add this record **before** running `setup-server.sh` if you can. Caddy requests the staging certificate as soon as it starts and retries if the record is not there yet, which is harmless but noisy. Do not add an AAAA record.
-
-**Firewall ports.** If a Hetzner Cloud Firewall is attached to the server, it must allow inbound **TCP 80**, **TCP 443** and **UDP 443** (UDP 443 is HTTP/3; browsers fall back to TCP if it is closed). `setup-server.sh` opens the same ports in ufw only if ufw is already active.
-
-Check from any computer after a few minutes: `nslookup staging.hybridatasolutions.com` should show `2.28.98.23`.
+There is no staging record: staging runs on GitHub Pages, not on this server. If a Hetzner Cloud Firewall is attached to the server, it must allow inbound **TCP 80**, **TCP 443** and **UDP 443** (UDP 443 is HTTP/3; browsers fall back to TCP if it is closed). `setup-server.sh` opens the same ports in ufw only if ufw is already active.
 
 ## Step 2: a day before go-live: lower the TTL
 
 Lower the TTL of the **existing** `@` (apex) A record and the `www` record to **300** seconds. Do not change their values yet. Wait at least as long as the old TTL (often 1 hour, up to 24) before step 3, so that a rollback takes effect in about 5 minutes.
 
-## Step 3: go-live (only after Adam says publish and the production site has been published)
+## Step 3: go-live (run order: setup, publish, DNS, enable)
+
+Only after Adam has approved the publish, `setup-server.sh` has been run and `publish.sh` has put the approved version in `production`.
 
 Order matters:
 
-1. Make sure `publish.sh` has put the approved version in `production` (the Web team does this on request).
-2. Change the records:
+1. Change the records:
 
 | Type | Name / Host | Old value | New value | TTL |
 |---|---|---|---|---|
@@ -42,16 +35,16 @@ Order matters:
 | A | `www` | `157.230.81.24` | `2.28.98.23` | 300 |
 
    (`www` may instead be a CNAME to `hybridatasolutions.com`; use the A record if SystemDNS does not allow it.)
-3. Check for an **AAAA** record on `@` or `www`. If one exists and points at the old server, delete it (the new server has no IPv6 record), otherwise IPv6 visitors still reach the old server.
-4. Check for **CAA** records. If any exist, they must allow `letsencrypt.org` (and `sectigo.com`/`zerossl.com` if listed for Caddy). If there are none, nothing to do.
-5. On the server, run once: `sudo hybridata-enable-production` (see `README.md`). Caddy then gets the certificates for the apex and `www`. This takes about a minute.
-6. Check: `https://hybridatasolutions.com` loads, `https://www.hybridatasolutions.com/about.html` redirects to `https://hybridatasolutions.com/about.html`, and email still works (send a test message to and from the company address).
+2. Check for an **AAAA** record on `@` or `www`. If one exists and points at the old server, delete it (the new server has no IPv6 record), otherwise IPv6 visitors still reach the old server.
+3. Check for **CAA** records. If any exist, they must allow `letsencrypt.org` (and `sectigo.com`/`zerossl.com` if listed for Caddy). If there are none, nothing to do.
+4. On the server, run once: `sudo hybridata-enable-production` (see `README.md`; this is the first moment Caddy requests certificates). Caddy then gets the certificates for the apex and `www`. This takes about a minute.
+5. Check: `https://hybridatasolutions.com` loads, `https://www.hybridatasolutions.com/about.html` redirects to `https://hybridatasolutions.com/about.html`, and email still works (send a test message to and from the company address).
 
 Leave every MX and TXT record exactly as it is.
 
 ## Rollback (if anything is wrong after go-live)
 
-Put both A records back to `157.230.81.24` (TTL 300 makes this take about 5 minutes). The old server must stay up for at least a week after go-live: ask its owner to keep it running. If the AAAA record was deleted in step 3, restore it from the zone export. Optionally run `sudo hybridata-enable-production --disable` on the new server.
+Put both A records back to `157.230.81.24` (TTL 300 makes this take about 5 minutes). The old server must stay up for at least two weeks after go-live (do not cancel the old hosting before then): ask its owner to keep it running. If the AAAA record was deleted in step 3, restore it from the zone export. Optionally run `sudo hybridata-enable-production --disable` on the new server.
 
 ## Email: SPF and DKIM (from the LIGHT-31 audit)
 

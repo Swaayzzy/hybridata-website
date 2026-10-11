@@ -1,24 +1,34 @@
 #!/usr/bin/env bash
-# Publish the exact commit that staging is on (staging.sha) to production. Run as the agent user,
-# and only after Adam has said "publish".
+# Publish one explicit commit to production. Run as the agent user, and only with a SHA that Adam
+# approved (a commit on the staging branch, or merged to main).
+#   publish.sh <full-40-hex-sha> --yes-adam-approved
 #
-# The release is built from the clean site/ at that commit. It is NOT a copy of the staging
-# directory with noindex stripped out, so noindex cannot reach production.
+# The release is built from the clean site/ at that commit. Nothing is taken from a staging copy,
+# so noindex cannot reach production.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-[ "${1:-}" = "--yes-adam-approved" ] || die "refusing to publish. Run only after Adam says publish: $0 --yes-adam-approved"
+sha="" approved=0
+for a in "$@"; do
+  case $a in
+    --yes-adam-approved) approved=1 ;;
+    "") die "empty argument" ;;
+    -*) die "unknown option: $a" ;;
+    *) [ -z "$sha" ] || die "only one SHA is allowed"; sha=$a ;;
+  esac
+done
+[ -n "$sha" ] || die "usage: $0 <full-40-hex-sha> --yes-adam-approved"
+[[ $sha =~ ^[0-9a-f]{40}$ ]] || die "the SHA must be the full 40 lowercase hex digits: $sha"
+[ "$approved" -eq 1 ] || die "refusing to publish. Run only with the SHA Adam approved: $0 $sha --yes-adam-approved"
 require_agent_user
 require_tree
 
-[ -f "$ROOT/staging.sha" ] || die "$ROOT/staging.sha not found - run deploy-staging.sh first"
-sha="$(head -n1 "$ROOT/staging.sha")"
-[[ $sha =~ ^[0-9a-f]{40}$ ]] || die "staging.sha does not hold a full commit SHA"
-
 sync_repo
-git -C "$REPO_DIR" cat-file -e "$sha^{commit}" 2>/dev/null || die "commit $sha is not in the repo (staging branch rewritten?)"
-[ "$TIP_SHA" = "$sha" ] || log "NOTE: $BRANCH has moved on to $TIP_SHA; publishing the staged commit $sha"
+git -C "$REPO_DIR" cat-file -e "$sha^{commit}" 2>/dev/null || die "no such commit: $sha"
+require_on_branch "$sha"
+log "Publishing commit $sha"
+log "  subject: $(commit_subject "$sha")"
 
 name="$(date -u +%Y%m%dT%H%M%SZ)-${sha:0:7}"
 final="$ROOT/releases/$name"
@@ -27,8 +37,11 @@ cleanup() { rm -rf "$build"; }
 trap cleanup EXIT
 [ ! -e "$final" ] || die "release $name already exists"
 
-# Only site/ is exported - staging-noindex.sh is never run here.
+# Only site/ is exported; nothing from the commit is executed.
 export_tree "$sha" "$build/x" site
+if [ -n "$(find "$build/x" -name '-*' -print -quit)" ]; then
+  die "the commit has a file whose name starts with '-'; refusing to publish it"
+fi
 mv -T "$build/x/site" "$build/site"
 rel="$build/site"
 

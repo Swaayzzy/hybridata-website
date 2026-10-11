@@ -3,15 +3,17 @@
 #   sudo bash ops/setup-server.sh
 # Installs Caddy and Python packages, creates /srv/hybridata, locks Caddy out of /home/agent,
 # installs the Caddyfile, opens the firewall if ufw is active, and prints a PASS/FAIL summary.
+# Production only. No site is served (and no certificate is requested) until DNS points at this server and
+# you run hybridata-enable-production.
 set -euo pipefail
 
 AGENT_USER="${AGENT_USER:-agent}"
 AGENT_HOME="${AGENT_HOME:-/home/$AGENT_USER}"
 BASE=/srv/hybridata
 OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE=/etc/caddy/staging.env
 DROPIN_DIR=/etc/systemd/system/caddy.service.d
-DROPIN=$DROPIN_DIR/staging-env.conf
+DROPIN=$DROPIN_DIR/hardening.conf
+ENABLED_LINK=/etc/caddy/enabled/production.caddy
 KEYRING=/usr/share/keyrings/caddy-stable-archive-keyring.gpg
 APT_LIST=/etc/apt/sources.list.d/caddy-stable.list
 # Primary-key fingerprint of the Caddy "stable" apt repo signing key (Caddy Web Server <contact@caddyserver.com>).
@@ -63,7 +65,7 @@ caddy_was_installed=0
 dpkg -s caddy >/dev/null 2>&1 && caddy_was_installed=1
 apt-get install -y -qq caddy
 # The package starts Caddy with its default config (admin API on TCP 127.0.0.1:2019). On a first install,
-# stop it now so that port is not open while the password prompt below waits for Adam.
+# stop it now so that port is not open until our Caddyfile is installed.
 if [ "$caddy_was_installed" -eq 0 ]; then systemctl stop caddy; fi
 
 # ---------------------------------------------------------------- 2. Python packages
@@ -78,16 +80,11 @@ first_run=0
 if [ ! -e "$BASE" ] && [ ! -L "$BASE" ]; then
   first_run=1
   say "Creating $BASE (owner $AGENT_USER, group caddy, dirs 2750, files 640)"
-  install -d -o root -g caddy -m 2750 "$BASE" "$BASE/releases" "$BASE/staging" "$BASE/releases/initial"
+  install -d -o root -g caddy -m 2750 "$BASE" "$BASE/releases" "$BASE/releases/initial"
   cat > "$BASE/releases/initial/index.html" <<'HTML'
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow">
 <title>Coming soon</title></head><body><p>This site is being set up.</p></body></html>
-HTML
-  cat > "$BASE/staging/index.html" <<'HTML'
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow">
-<title>Staging</title></head><body><p>Staging is set up. Nothing has been deployed yet.</p></body></html>
 HTML
   ln -s releases/initial "$BASE/production"
   # Nothing else exists in the new tree yet, so this cannot race with anyone.
@@ -113,35 +110,15 @@ if [ "$(stat -c '%G' "$AGENT_HOME")" = "caddy" ] && (( (8#$(stat -c '%a' "$AGENT
 fi
 echo "after:  mode/owner = $(stat -c '%a %U:%G' "$AGENT_HOME")"
 
-# ---------------------------------------------------------------- 5. Staging password (bcrypt hash only)
-say "Staging login"
+# ---------------------------------------------------------------- 5. systemd drop-in
+say "Hardening the Caddy service"
 mkdir -p /etc/caddy /etc/caddy/available /etc/caddy/enabled
-if [ -s "$ENV_FILE" ] && grep -Eq "^STAGING_AUTH_HASH='[$]2[aby][$]" "$ENV_FILE" && [ "${RESET_STAGING_PASSWORD:-0}" != 1 ]; then
-  echo "Keeping the existing staging password (set RESET_STAGING_PASSWORD=1 to change it)."
-else
-  [ -t 0 ] || die "need a terminal to ask for the staging password"
-  echo "Choose the staging password (user name: review). Minimum 12 characters. Input is hidden."
-  read -r -s -p "Password: " pw1; echo
-  read -r -s -p "Again:    " pw2; echo
-  [ "$pw1" = "$pw2" ] || die "passwords do not match"
-  [ "${#pw1}" -ge 12 ] || die "password too short"
-  hash="$(printf '%s\n%s\n' "$pw1" "$pw1" | caddy hash-password)"
-  unset pw1 pw2
-  [[ $hash =~ ^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$ ]] || die "unexpected output from caddy hash-password"
-  old_umask="$(umask)"; umask 077
-  printf "STAGING_AUTH_HASH='%s'\n" "$hash" > "$ENV_FILE.new"
-  umask "$old_umask"
-  chown root:root "$ENV_FILE.new"; chmod 600 "$ENV_FILE.new"
-  mv -T "$ENV_FILE.new" "$ENV_FILE"
-  unset hash
-  RESTART_NEEDED=1
-fi
-chown root:root "$ENV_FILE"; chmod 600 "$ENV_FILE"
-
+# An earlier version of the kit also ran a staging site on this server; drop its leftovers if present.
+rm -f /etc/systemd/system/caddy.service.d/staging-env.conf /etc/caddy/staging.env
 mkdir -p "$DROPIN_DIR"
-# EnvironmentFile: the staging hash. ProtectHome: Caddy cannot see /home whatever the file modes are.
+# ProtectHome: Caddy cannot see /home whatever the file modes are.
 # RuntimeDirectory: /run/caddy, owned by caddy and closed to everyone else, holds the admin socket.
-want_dropin=$'[Service]\nEnvironmentFile='"$ENV_FILE"$'\nProtectHome=yes\nRuntimeDirectory=caddy\nRuntimeDirectoryMode=0700\n'
+want_dropin=$'[Service]\nProtectHome=yes\nRuntimeDirectory=caddy\nRuntimeDirectoryMode=0700\n'
 if [ "$(cat "$DROPIN" 2>/dev/null || true)" != "${want_dropin%$'\n'}" ]; then
   printf '%s' "$want_dropin" > "$DROPIN"
   chmod 644 "$DROPIN"
@@ -157,16 +134,14 @@ install -m 644 -o root -g root "$OPS_DIR/Caddyfile" /etc/caddy/Caddyfile.new
 if [ -f /etc/caddy/Caddyfile ] && ! cmp -s /etc/caddy/Caddyfile /etc/caddy/Caddyfile.new && [ ! -e /etc/caddy/Caddyfile.dist ]; then
   cp -p /etc/caddy/Caddyfile /etc/caddy/Caddyfile.dist      # keep the package default once
 fi
-# shellcheck source=/dev/null
-# Validate the candidate (with the staging hash in the environment) before it replaces the live file.
-if ! ( set -a; . "$ENV_FILE"; set +a; caddy validate --config /etc/caddy/Caddyfile.new --adapter caddyfile >/dev/null 2>&1 ); then
+# Validate the candidate before it replaces the live file.
+if ! caddy validate --config /etc/caddy/Caddyfile.new --adapter caddyfile >/dev/null 2>&1; then
   rm -f /etc/caddy/Caddyfile.new
   die "caddy validate failed on the new Caddyfile; the old one is untouched"
 fi
 if ! cmp -s /etc/caddy/Caddyfile /etc/caddy/Caddyfile.new 2>/dev/null; then RESTART_NEEDED=1; fi
 mv -T /etc/caddy/Caddyfile.new /etc/caddy/Caddyfile
-# shellcheck source=/dev/null
-( set -a; . "$ENV_FILE"; set +a; caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 ) || die "caddy validate failed"
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 || die "caddy validate failed"
 echo "caddy validate: OK"
 
 # ---------------------------------------------------------------- 7. Firewall (never enable it)
@@ -205,7 +180,7 @@ no_loose_modes() {
 }
 setgid_inherits() {   # the file is created and removed by the agent user, not by root
   local t rc=1
-  t="$(runuser -u "$AGENT_USER" -- mktemp -p "$BASE/staging" .setup-check.XXXXXX)" || return 1
+  t="$(runuser -u "$AGENT_USER" -- mktemp -p "$BASE/releases" .setup-check.XXXXXX)" || return 1
   if [ "$(stat -c '%G' "$t")" = caddy ]; then rc=0; fi
   runuser -u "$AGENT_USER" -- rm -f "$t"
   return $rc
@@ -214,9 +189,8 @@ prod_target_ok() {
   local t; t="$(readlink -f "$BASE/production")"
   [[ $t == "$BASE"/releases/* ]] && [ -f "$t/index.html" ]
 }
-env_file_ok() { [ "$(stat -c '%a %U' "$ENV_FILE")" = "600 root" ]; }
 caddy_cannot_read_home() { as_caddy test ! -r "$AGENT_HOME" && as_caddy test ! -x "$AGENT_HOME"; }
-caddy_read_only() { as_caddy test -r "$BASE/staging/index.html" && as_caddy test ! -w "$BASE/staging" && as_caddy test ! -w "$BASE/releases"; }
+caddy_read_only() { as_caddy test -r "$BASE/releases/initial/index.html" && as_caddy test ! -w "$BASE/releases/initial" && as_caddy test ! -w "$BASE/releases"; }
 # The admin API must not be reachable by the agent user, on TCP or through the socket.
 admin_not_on_tcp() { ! listening 2019; }
 agent_cannot_reach_admin_tcp() { ! runuser -u "$AGENT_USER" -- curl -s --max-time 3 http://127.0.0.1:2019/config/; }
@@ -230,19 +204,20 @@ reload_works() { systemctl reload caddy && sleep 1 && systemctl is-active --quie
 exec_reload_ok() { systemctl show caddy -p ExecReload --value | grep -q -- 'reload --config /etc/caddy/Caddyfile --force'; }
 protect_home_set() { [ "$(systemctl show caddy -p ProtectHome --value)" = yes ]; }
 python_ok() { dpkg -s python3-venv python3-pip python3-full && python3 -c 'import venv, ensurepip'; }
-# shellcheck source=/dev/null
-validate_ok() { ( set -a; . "$ENV_FILE"; set +a; caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile ); }
+validate_ok() { caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; }
+# Before go-live Caddy serves no site, so it listens on no web port. After hybridata-enable-production it must.
+production_enabled() { [ -L "$ENABLED_LINK" ]; }
+web_ports_ok() { if production_enabled; then listening 80 && listening 443; else ! listening 80 && ! listening 443; fi; }
 
-# Caddy needs a moment to bind its ports.
-for _ in 1 2 3 4 5 6 7 8 9 10; do listening 80 && listening 443 && break; sleep 1; done
+# Caddy needs a moment to bind its ports (only when the production site is already enabled).
+if production_enabled; then for _ in 1 2 3 4 5 6 7 8 9 10; do listening 80 && listening 443 && break; sleep 1; done; fi
 
 say "Summary"
 check "Caddy service is active" systemctl is-active --quiet caddy
 check "Caddyfile validates" validate_ok
-check "port 80 is listening" listening 80
-check "port 443 is listening" listening 443
+check "web ports: $(if production_enabled; then echo '80 and 443 listening (production enabled)'; else echo '80 and 443 closed, as expected before go-live'; fi)" web_ports_ok
 check "$BASE owned by $AGENT_USER:caddy, dirs 2750, files 640 (checked only$( [ "$first_run" -eq 1 ] && echo '; set at creation'))" no_loose_modes
-check "new files in staging/ inherit group caddy (setgid)" setgid_inherits
+check "new files in releases/ inherit group caddy (setgid)" setgid_inherits
 check "caddy can read the tree but not write to it" caddy_read_only
 check "sudo -u caddy test ! -r $AGENT_HOME (and no traverse)" caddy_cannot_read_home
 check "Caddy service has ProtectHome=yes (no access to /home at all)" protect_home_set
@@ -251,7 +226,6 @@ check "admin API is not listening on TCP 2019" admin_not_on_tcp
 check "agent cannot reach the admin API: curl http://127.0.0.1:2019/config/ fails" agent_cannot_reach_admin_tcp
 check "admin socket $ADMIN_SOCK is 600 caddy, in a 700 caddy directory; agent cannot open it" admin_socket_private
 check "systemctl reload caddy works with the admin socket" reload_works
-check "$ENV_FILE is mode 600, owned by root" env_file_ok
 check "production symlink -> $(readlink "$BASE/production") (exists, has index.html)" prod_target_ok
 check "Python packages: python3-venv, python3-pip, python3-full, ensurepip" python_ok
 echo

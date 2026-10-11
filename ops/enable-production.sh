@@ -13,7 +13,7 @@ LINK=/etc/caddy/enabled/production.caddy
 if [ "${1:-}" = "--disable" ]; then
   rm -f "$LINK"
   systemctl reload caddy
-  echo "Production site disabled; only staging is served."
+  echo "Production site disabled; this server serves no site."
   exit 0
 fi
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers, sourced by deploy-staging.sh, publish.sh and rollback.sh. Not run directly.
+# Shared helpers, sourced by publish.sh and rollback.sh. Not run directly.
 # shellcheck disable=SC2034  # variables are used by the scripts that source this file
 
 # ops/ code always comes from the checked-out kit (this directory), never from a deployed commit.
@@ -7,7 +7,8 @@ OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${HYBRIDATA_ROOT:-/srv/hybridata}"
 REPO_URL="${HYBRIDATA_REPO_URL:-https://github.com/Swaayzzy/hybridata-website.git}"
 REPO_DIR="${HYBRIDATA_REPO_DIR:-$HOME/hybridata-website-deploy}"
-BRANCH="${HYBRIDATA_BRANCH:-staging}"
+# A published commit must be on one of these branches (staging while under review, main once merged).
+BRANCHES=(staging main)
 KEEP_RELEASES=5
 
 # New files: owner rw, group (caddy, via the setgid directories) r, others nothing.
@@ -22,24 +23,29 @@ require_agent_user() {
 
 require_tree() {
   local d
-  for d in "$ROOT" "$ROOT/releases" "$ROOT/staging"; do
+  for d in "$ROOT" "$ROOT/releases"; do
     [ -d "$d" ] || die "$d is missing - has setup-server.sh been run?"
   done
 }
 
-# Clone on first use, then fetch the branch. Sets TIP_SHA to the branch tip.
+# Clone on first use, then fetch the allowed branches.
 sync_repo() {
+  local b
   if [ ! -d "$REPO_DIR/.git" ]; then
     git clone --quiet --no-checkout "$REPO_URL" "$REPO_DIR"
   fi
-  git -C "$REPO_DIR" fetch --quiet origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
-  TIP_SHA="$(git -C "$REPO_DIR" rev-parse --verify "refs/remotes/origin/$BRANCH^{commit}")"
+  for b in "${BRANCHES[@]}"; do
+    git -C "$REPO_DIR" fetch --quiet origin "+refs/heads/$b:refs/remotes/origin/$b"
+  done
 }
 
-# require_on_branch <sha> - the commit must be reachable from the fetched branch tip.
+# require_on_branch <sha> - the commit must be reachable from the tip of a branch in BRANCHES.
 require_on_branch() {
-  git -C "$REPO_DIR" merge-base --is-ancestor "$1" "refs/remotes/origin/$BRANCH" \
-    || die "commit $1 is not on the $BRANCH branch; refusing to use it"
+  local b
+  for b in "${BRANCHES[@]}"; do
+    if git -C "$REPO_DIR" merge-base --is-ancestor "$1" "refs/remotes/origin/$b" 2>/dev/null; then return 0; fi
+  done
+  die "commit $1 is not on the staging or main branch; refusing to use it"
 }
 
 # commit_subject <sha> - the subject line with control characters removed (safe to print).
@@ -71,28 +77,4 @@ swap_symlink() {
     rm -rf "$d"
     die "could not switch $link"
   fi
-}
-
-# swap_dirs <new> <live> - atomically exchange two directories (renameat2 RENAME_EXCHANGE).
-# Afterwards <live> holds the new content and <new> holds the old content.
-# Falls back to two renames (a very short gap) if the filesystem cannot exchange.
-swap_dirs() {
-  local new=$1 live=$2
-  if [ ! -e "$live" ]; then
-    mv -T "$new" "$live"
-    return
-  fi
-  if python3 - "$new" "$live" <<'PY' 2>/dev/null
-import ctypes, os, sys
-libc = ctypes.CDLL(None, use_errno=True)
-rc = libc.renameat2(-100, os.fsencode(sys.argv[1]), -100, os.fsencode(sys.argv[2]), 2)
-sys.exit(0 if rc == 0 else 1)
-PY
-  then
-    return
-  fi
-  log "WARNING: atomic directory exchange unavailable; using two renames"
-  mv -T "$live" "$new.old"
-  mv -T "$new" "$live"
-  mv -T "$new.old" "$new"
 }
