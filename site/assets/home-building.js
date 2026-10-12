@@ -65,13 +65,16 @@
   }
 
   // Active step = last step whose top has passed the reading line (just under the sticky stage on phones, mid-screen on desktop).
+  var sticky = section.querySelector('.stage-sticky');
+  function readLine() {
+    if (window.matchMedia('(max-width: 900px)').matches) return sticky.getBoundingClientRect().bottom + 24;
+    return window.innerHeight * 0.5;
+  }
+  function setStickyVar() { section.style.setProperty('--sticky-h', Math.round(sticky.getBoundingClientRect().height) + 'px'); }
+  if (window.ResizeObserver) new ResizeObserver(setStickyVar).observe(sticky);
+  setStickyVar();
   function activeFromScroll() {
-    var line;
-    if (window.matchMedia('(max-width: 900px)').matches) {
-      line = frame.getBoundingClientRect().bottom + 56;
-    } else {
-      line = window.innerHeight * 0.5;
-    }
+    var line = readLine();
     var n = 1;
     for (var i = 0; i < steps.length; i++) if (steps[i].getBoundingClientRect().top <= line) n = i + 1;
     return n;
@@ -89,7 +92,7 @@
     var el = steps[n - 1];
     if (!el) return;
     var r = el.getBoundingClientRect();
-    var line = window.matchMedia('(max-width: 900px)').matches ? frame.getBoundingClientRect().bottom + 56 : window.innerHeight * 0.5;
+    var line = readLine();
     window.scrollBy({ top: r.top - line + 8, behavior: S.reduceMotion() ? 'auto' : 'smooth' });
   }
   if (prev) prev.addEventListener('click', function () { goTo(Math.max(1, stage - 1)); });

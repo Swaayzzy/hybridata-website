@@ -115,11 +115,20 @@ html.hyb-reduce .hyb-stage svg .flow, html.hyb-reduce .hyb-stage svg .bloom, htm
 /* Tablet and phone: sticky stage on top, story or copy scrolls underneath */
 @media (max-width: 900px) {
   .stage-layout { display: block; }
-  .stage-sticky { top: var(--hdr); padding-top: 8px; background: var(--panel); }
-  .home-stage .stage-frame { aspect-ratio: auto; height: 55svh; max-height: 560px; min-height: 280px; }
+  .stage-sticky { top: var(--hdr); padding-top: 4px; background: var(--panel); }
+  .home-stage .stage-frame { aspect-ratio: auto; height: 42svh; max-height: 520px; min-height: 260px; }
   .rack-stage .stage-frame.is-rack { aspect-ratio: auto; height: 46svh; max-height: 520px; min-height: 260px; max-width: none; }
-  .story-step { min-height: 42vh; }
-  .story-step, .picker, .picker-row button, .rack-controls, .rack-range { scroll-margin-top: calc(var(--hdr) + 55svh + 24px); }
+  .story-step { min-height: 36svh; justify-content: flex-start; padding-top: 12px; }
+  .story-step, .picker, .picker-row button, .rack-controls, .rack-range { scroll-margin-top: calc(var(--hdr) + var(--sticky-h, 55svh) + 16px); }
+  .picker { margin-top: 4px; padding-bottom: 24px; }
+  .picker-row { padding-bottom: 0; }
+  .picker-out { margin-top: 8px; }
+  .picker-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .picker-out { padding: 12px; }
+  .picker-out p { margin-bottom: 10px; }
+  .view-toggle { margin-bottom: 6px; }
+  .stage-nav { margin-top: 6px; gap: 8px; }
+  .picker-out { min-height: 0; }
   .stage-label { font-size: 12px; }
 }
 @media (max-width: 680px) {
@@ -134,3 +143,9 @@ html.hyb-reduce .hyb-stage svg .flow, html.hyb-reduce .hyb-stage svg .bloom, htm
   .picker-row { flex-wrap: wrap; overflow: visible; }
 }
 .stage-nav .stage-status { min-width: 0; }
+
+/* Status on its own full-width line above Prev/Next */
+.stage-nav { flex-wrap: wrap; }
+.stage-nav .stage-status { flex: 1 0 100%; order: -1; }
+.stage-nav button { flex: 1 1 0; }
+@media (min-width: 901px) { .stage-nav .stage-status { flex: 1; order: 0; } .stage-nav button { flex: 0 0 auto; } }
