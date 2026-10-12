@@ -7,7 +7,7 @@
 
   // Lazy-loader stub. When a 3D bundle ships, add its file name here, e.g. BUNDLES.home = 'home-building.3d.js'.
   // The file lives in assets/3d/ and must export mount(el, options) -> { destroy() }. See assets/3d/README.md.
-  var BUNDLES = { home: 'home-building.3d.js' };
+  var BUNDLES = { home: 'home-building.3d.js', rack: 'rack.3d.js' };
   var BUNDLE_BASE = 'assets/3d/';
 
   function reduceMotion() { return mqReduce.matches; }

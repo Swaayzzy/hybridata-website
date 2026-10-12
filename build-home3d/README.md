@@ -23,3 +23,14 @@ npm run licenses       # rewrites site/LICENSES.md with the SHA-256 of every shi
 ## Scale note
 
 Hardware is drawn at realistic proportions except readers, cameras and J-hooks, which are enlarged about 1.5 to 2 times so they read at building scale. Coverage and view cones are illustrative.
+
+## Rack bundle (LIGHT-478)
+
+```
+npm run assets:rack     # Plastic010 + Rubber004 derivatives into site/assets/3d/rack/ (python3 + Pillow, no network)
+npm run build:rack      # esbuild -> site/assets/3d/rack.3d.js, prints size, SHA-256 and an eval / new Function check
+npm run licenses:rack   # refreshes the rack block in site/LICENSES.md (run `npm run licenses` first if you also regenerate the home block: it rewrites the whole file)
+```
+
+- `src/rack.js`: the rack scene (`LAYOUT`, `PAIRS`, camera `POSE` per stop, `LAB` label anchors). `src/util.js` is shared with the home scene.
+- Hardware is drawn at real proportions: 19 in rails, 44.45 mm rack units, RJ45 pitch, 1U switches with two rows of 24 ports. Rack frame, ladder rack, busbar and cord routes are illustrative of a typical layout. The test trace on the tablet is an invented shape and says so on screen.

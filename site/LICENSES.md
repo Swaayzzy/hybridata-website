@@ -67,3 +67,51 @@ Made by `build-home3d/scripts/make-assets.py`: maps resized to 256 px (phones) a
 
 Rebuild: `cd build-home3d && npm ci && npm run assets && npm run build`. esbuild 0.28.2 is a dev-only dependency; the lockfile carries the integrity values Security passed (three 0.185.1, esbuild 0.28.2, @esbuild/linux-x64 0.28.2).
 
+<!-- rack:start -->
+## Data center page: "Build the rack" 3D section (LIGHT-478)
+
+The rack is built in code (no model file). Everything below is self-hosted under `assets/3d/`; nothing loads from a third-party host.
+
+### Credits (courtesy lines)
+
+- Environment lighting: "Studio Small 09" HDRI by Sergej Majboroda, from Poly Haven (https://polyhaven.com/a/studio_small_09), CC0 1.0. The same two derivative files as the home section are reused (`assets/3d/home/env/`).
+- Surface textures from ambientCG (https://ambientcg.com), CC0 1.0: Plastic010 and Rubber004 (new for this section), plus Metal027, PaintedMetal004 and Concrete034, reused from the home section (`assets/3d/home/texs/`, `texm/`; hashes listed above).
+- Three.js 0.185.1 (MIT), bundled and minified into `assets/3d/rack.3d.js`.
+
+### Sources (as passed by Security in LIGHT-476)
+
+| Source file | Licence | SHA-256 |
+| --- | --- | --- |
+| `Plastic010_1K-JPG.zip` (ambientCG) | CC0 1.0 | `46a2504dbef278475b85c846713804a36823c7151cb79c90728d5c6eab283a19` |
+| `Rubber004_1K-JPG.zip` (ambientCG) | CC0 1.0 | `d8933e73c3b983892209bb143ca4bc13a48e4d55720ab12f6e6a303c96c84a31` |
+
+Only the Color, NormalGL and Roughness maps were read out of each zip; the `.blend`, `.usdc`, `.mtlx`, `.tres` and preview files were never extracted.
+
+### Shipped derivatives
+
+Made by `build-home3d/scripts/make-assets-rack.py`: maps resized to 256 px (phones) and 512 px (desktop) and saved as WebP.
+
+| File | Bytes | SHA-256 |
+| --- | --- | --- |
+| `assets/3d/rack/texs/Plastic010_Color.webp` | 216 | `9cb028ba59ada3cae8e6dbe567d9fdd449c2293b26716a08d932cb29188aa26f` |
+| `assets/3d/rack/texs/Plastic010_NormalGL.webp` | 200 | `52cff9b9aa4428cc4c5acb8daa75694f31db0d7943e72568509e00e2fe18651a` |
+| `assets/3d/rack/texs/Plastic010_Roughness.webp` | 1840 | `2d3b7b4162b0308d7e1cd8d89bec72516070e56fa1f3d49c84077c40cc997bfe` |
+| `assets/3d/rack/texs/Rubber004_Color.webp` | 2912 | `f93fee6cba115dae0f6fd485a1d9fa7b6de1ff76b8f23871d3fbfdc83efe90a8` |
+| `assets/3d/rack/texs/Rubber004_NormalGL.webp` | 350 | `84835c84da51ef6bdcffa1fa6118f108aa291d5cf61c4e22c1f9e08205d1f0d5` |
+| `assets/3d/rack/texs/Rubber004_Roughness.webp` | 1676 | `e9d34f5593b0ab56dfba88700d52d1bd89c318de995a7436171bd178d167b0db` |
+| `assets/3d/rack/texm/Plastic010_Color.webp` | 608 | `ad4a157856a773bdd8ce2718cd43f2e572de68f184184ad3d0cb3f164188dc7a` |
+| `assets/3d/rack/texm/Plastic010_NormalGL.webp` | 576 | `5a2ba06b0336210cfe84a43e77dd2e227c9d0fef11894651021e68659b3848e4` |
+| `assets/3d/rack/texm/Plastic010_Roughness.webp` | 7568 | `7610ec96c5e05db5547d5ca38a0c8be97050da2cd50996519a2f5ff086fce753` |
+| `assets/3d/rack/texm/Rubber004_Color.webp` | 17310 | `9a7fcab0c71574ff87a65736d4512ff935d7ea0fe1f668a2f689484f4d466eef` |
+| `assets/3d/rack/texm/Rubber004_NormalGL.webp` | 29168 | `812ec815fbdcef6903c8e1d82f89e51216499fe72054291499cea51e17fe88f2` |
+| `assets/3d/rack/texm/Rubber004_Roughness.webp` | 27740 | `682533419cbfd6a4bc2a056bfc342def2451a4a69bdb5cb665292aec5e5b1497` |
+
+### Built bundle
+
+| File | Bytes | SHA-256 |
+| --- | --- | --- |
+| `assets/3d/rack.3d.js` | 580188 | `1f34100b95506a80d46216bba3baf29a3ab6e9c6c4ccc7504678378e49655845` |
+
+Rebuild: `cd build-home3d && npm ci && python3 scripts/make-assets-rack.py && node scripts/build-rack.mjs`, then `python3 scripts/licenses-rack.py`. Same pinned, lockfile-verified esbuild 0.28.2 (dev only) as the home section.
+
+<!-- rack:end -->

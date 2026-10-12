@@ -14,7 +14,16 @@ Both sections ship a 2D SVG view. The 3D view plugs in here without touching the
 | Path | What |
 | --- | --- |
 | `home-building.3d.js` | Home "Inside the building" bundle (three 0.185.1, tree-shaken and minified). Built from `build-home3d/`. |
+| `rack.3d.js` | Data center "Build the rack" bundle (three 0.185.1, tree-shaken and minified). Built from `build-home3d/src/rack.js` with `npm run build:rack`. Reuses `home/env/` and the Metal027, PaintedMetal004 and Concrete034 maps in `home/tex*/`. |
+| `rack/texs/`, `rack/texm/` | WebP PBR maps for the rack only (Plastic010, Rubber004), 256 px (phones) and 512 px (desktop). |
 | `home/env/` | One HDRI at 256x128 (phones) and 512x256 (desktop). |
 | `home/texs/`, `home/texm/` | WebP PBR maps, 256 px (phones) and 512 px (desktop). |
 
 Licences and SHA-256 of every shipped file are in `site/LICENSES.md`.
+
+## Rack bundle (`rack.3d.js`)
+
+- `mount(el, { reduceMotion }) -> { setState(stop), check(), destroy() }`. `setState(1..6)` sets the target stop; one build value drives every part, so dragging the slider fast or slow both ways always eases to and lands on a clean stop, and the scene draws no frames when it is at rest or off screen.
+- State for QA: `window.__hybRack3d` (`frames`, `p`, `calls()`, `tris()`, `tier`), `window.__hybRack` (`stop`, `set`, `view()`), `window.__hybLabelCheck.rack()`.
+- The rack page loads the bundle when the section comes within 400 px of the screen. The one-time auto-build waits up to 5 s for it, so the first thing a visitor sees is the 3D build.
+- Same testing switches as the home page: `?mode=3d` (skip size and hardware checks), `&eager=1` (mount at once).

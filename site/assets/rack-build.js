@@ -30,6 +30,7 @@
     6: [{ text: 'Fiber trunk', ax: 376, ay: 90 }, { text: 'Splice tray', ax: 328, ay: 360 }, { text: 'Test trace (illustrative)', ax: 320, ay: 480 }]
   };
 
+  window.__hybLabelCheck = window.__hybLabelCheck || {};
   var toggle = S.initToggle(section, 'rack');
   var labels = S.createLabels({ frame: frame, vb: { w: 480, h: 680 }, draw: { x: 98, y: 20, w: 286, h: 630 }, mode: 'lr', max: 3 });
   var stop = 0, timer = 0, auto = false, ctrl = false;
@@ -41,7 +42,8 @@
     stop = n;
     rack.setAttribute('data-stop', String(n));
     S.applyStage(svg, n, '');
-    labels.show(LABELS[n]);
+    if (toggle.view === '3d' && toggle.handle) { labels.show([]); toggle.handle.setState(n); window.__hybLabelCheck.rack = toggle.handle.check; }
+    else labels.show(LABELS[n]);
     var s = STOPS[n - 1];
     nameEl.textContent = s.name;
     numEl.textContent = 'Stop ' + n + ' of 6';
@@ -68,18 +70,43 @@
     })();
   }
 
+  // The one-time auto-build waits (up to 5 s) for the 3D view when it is on its way, so the visitor sees the build in 3D, not a jump.
+  var want3d = !S.force2DReason() && 'IntersectionObserver' in window, waited = 0;
+  function startWhenReady() {
+    timer = 0;
+    if (ctrl || auto) return;
+    if (want3d && toggle.view !== '3d' && waited < 5000) { waited += 250; timer = setTimeout(startWhenReady, 250); return; }
+    autoBuild();
+  }
+
+  // When the 3D view mounts (or the visitor switches views) show the current stop in it; back to 2D redraws the 2D labels.
+  toggle.onChange(function (view, handle) {
+    if (view === '3d' && handle) { labels.show([]); handle.setState(stop); window.__hybLabelCheck.rack = handle.check; }
+    else { labels.show(LABELS[stop]); window.__hybLabelCheck.rack = labels.check; }
+  });
+
   section.classList.add('is-ready');
   var reduce = S.reduceMotion();
   set(reduce ? 6 : 1);
   if (!reduce && 'IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (es) {
-      if (es[0].isIntersecting && !auto && !ctrl) { io.disconnect(); timer = setTimeout(autoBuild, 400); }
+      if (es[0].isIntersecting && !auto && !ctrl) { io.disconnect(); timer = setTimeout(startWhenReady, 400); }
     }, { threshold: 0.5 });
     io.observe(frame);
   } else if (!reduce) {
     set(6);
   }
-  window.__hybLabelCheck = window.__hybLabelCheck || {};
-  window.__hybLabelCheck.rack = labels.check;
   window.__hybRack = { set: set, get stop() { return stop; }, view: function () { return toggle.view; } };
+  window.__hybLabelCheck.rack = labels.check;
+
+  // 3D view: load the bundle when the section nears the screen (the 2D rack shows until it is ready).
+  // ?eager=1 (testing only, used by the QA gate) mounts at once.
+  if (!S.force2DReason() && /[?&]eager=1\b/.test(location.search)) {
+    toggle.set('3d');
+  } else if (!S.force2DReason() && 'IntersectionObserver' in window) {
+    var io3 = new IntersectionObserver(function (es) {
+      if (es.some(function (e) { return e.isIntersecting; })) { io3.disconnect(); toggle.set('3d'); }
+    }, { rootMargin: '400px 0px' });
+    io3.observe(section);
+  }
 })();
