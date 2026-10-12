@@ -155,6 +155,8 @@ html.hyb-reduce .hyb-stage svg .flow, html.hyb-reduce .hyb-stage svg .bloom, htm
 .hyb-stage:not(.is-ready) svg .facade { opacity: 0; }
 
 @media (min-width: 901px) {
+  /* The skip link must land the picker below the sticky site header. */
+  #service-picker { scroll-margin-top: calc(var(--hdr) + 16px); }
   .picker-row { flex-wrap: wrap; overflow: visible; }
 }
 .stage-nav .stage-status { min-width: 0; height: 22px; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
