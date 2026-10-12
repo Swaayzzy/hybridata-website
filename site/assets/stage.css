@@ -47,10 +47,10 @@
 .hwb-dot.is-done .hwb-dot-i { border-color: var(--cyan); }
 .hwb-dot[aria-current="step"] .hwb-dot-i { color: var(--ink); background: var(--cyan-light); border-color: var(--cyan-light); }
 
-/* Below the player: intro, picker, CTAs */
+/* Above the player: intro. Below it: picker, CTAs */
 .hwb-more { grid-column: 1 / -1; }
-.hwb-more .stage-intro { max-width: 760px; margin: 12px 0 0; }
-.hwb-more .stage-intro p { color: #c1d0d5; font-size: 16px; margin: 12px 0 0; }
+.hwb-intro { max-width: 760px; margin: 0 0 22px; }
+.hwb-intro p { color: #c1d0d5; font-size: 16px; margin: 12px 0 0; }
 .hwb .stage-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
 .picker { margin-top: 22px; max-width: 760px; }
 .picker-row { display: flex; flex-wrap: wrap; gap: 8px; }

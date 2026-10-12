@@ -277,7 +277,7 @@ def labels(A):
     rk = A['rack0']
     top = A['rack0top']
     fx, fy = A['rack0face']
-    L('mdf1', 'MDF', rk, (200, 556), steps=(1, 8), focus=('fiber', 'cabling'))
+    L('mdf1', 'MDF', rk, (200, 556), steps=(8,), focus=('fiber', 'cabling'))
     L('mdf2', 'MDF', top, (96, 290), steps=(2,))
     L('fe2', 'Fiber enclosure', (fx + 30, fy + 14), (250, 322), steps=(2,), focus=('fiber',))
     L('sw2', 'Switch', (fx + 30, fy + 68), (270, 412), steps=(2,))
