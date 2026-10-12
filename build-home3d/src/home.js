@@ -750,13 +750,15 @@ export async function mount(el, options) {
     if (!W || !H) return;
     scl = Math.min(W / VB.w, H / VB.h);
     const ox = (W - VB.w * scl) / 2, oy = (H - VB.h * scl) / 2;
+    // The canvas covers the frame's whole content box (no empty band at any frame shape); a view offset keeps the model drawn in the same draw band the labels are laid out around.
     const cw = Math.round(DRAW.w * scl), ch = Math.round(DRAW.h * scl);
+    const dx = Math.round(ox + DRAW.x * scl), dy = Math.round(oy + DRAW.y * scl);
     canvas.style.position = 'absolute';
-    canvas.style.left = Math.round(ox + DRAW.x * scl) + 'px'; canvas.style.top = Math.round(oy + DRAW.y * scl) + 'px';
+    canvas.style.left = '0px'; canvas.style.top = '0px';
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
-    renderer.setSize(cw, ch, false);
-    canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
-    camera.aspect = cw / ch; camera.updateProjectionMatrix();
+    renderer.setSize(W, H, false);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    camera.aspect = cw / ch; camera.setViewOffset(cw, ch, -dx, -dy, W, H); camera.updateProjectionMatrix();
     sized = true;
     placeLabels(); invalidate();
   }

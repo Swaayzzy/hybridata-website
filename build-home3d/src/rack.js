@@ -213,18 +213,17 @@ export async function mount(el, options) {
   })();
   const busbar = new Group(); staticG.add(busbar);
   await yieldMain();
-  (function () {   // grounding busbar on a floor stand, bonded to the rack and to the ladder rack with green jumpers
-    const p = part(), bx = -0.52, by = 0.5, bz = 0.3;
-    p.box(M.shelf, 0.05, 0.9, 0.02, bx, 0.45, bz - 0.04, 0.4);               // stand
-    p.box(M.shelf, 0.26, 0.02, 0.2, bx, 0.01, bz - 0.02, 0.4);
-    p.box(M.copper, 0.07, 0.34, 0.006, bx, by, bz - 0.015);                   // bar
-    [-0.12, 0.12].forEach((dy) => p.cyl(M.insul, 0.012, 0.02, bx, by + dy, bz - 0.03, Math.PI / 2, 0, 0, 12));
-    for (let i = 0; i < 6; i++) { p.cyl(M.brass, 0.006, 0.012, bx - 0.016 + (i % 2) * 0.032, by - 0.13 + i * 0.05, bz - 0.01, Math.PI / 2, 0, 0, 8); }
-    // jumpers: busbar -> lower rack post, busbar -> rack side, and a bond up to the ladder rack
-    p.tube(M.bond, [V(bx + 0.02, by - 0.13, bz), V(bx + 0.14, by - 0.2, bz + 0.12), V(-0.3, 0.22, 0.32), V(-0.285, 0.2, 0.44)], 0.0065, 28, 6, 0.5);
-    p.tube(M.bond, [V(bx + 0.02, by + 0.13, bz), V(bx + 0.1, by + 0.45, bz + 0.1), V(-0.285, 1.5, 0.46)], 0.0065, 36, 6, 0.5);
-    p.tube(M.bond, [V(-0.285, 2.02, 0.46), V(-0.34, 2.16, 0.3), V(-0.15, 2.3, 0.15)], 0.0055, 24, 6, 0.5);
-    [[-0.285, 0.2, 0.44], [-0.285, 1.5, 0.46], [-0.285, 2.02, 0.46]].forEach((l) => p.box(M.brass, 0.014, 0.022, 0.006, l[0], l[1], l[2] + 0.02));
+  (function () {   // wall-mounted telecom grounding busbar (TGB) on insulated standoffs, bonded to the rack and to the ladder rack with green jumpers
+    const p = part(), bx = -0.74, by = 0.62, wz = -0.56, bz = wz + 0.05;       // wall face z = wz; bar sits 50 mm proud on the standoffs
+    p.box(M.frame, 0.4, 0.78, 0.02, bx, by, wz - 0.01, 0.4);                  // painted plywood backboard on the wall
+    p.box(M.copper, 0.07, 0.34, 0.006, bx, by, bz);                           // bar
+    [-0.12, 0.12].forEach((dy) => p.cyl(M.insul, 0.011, 0.05, bx, by + dy, wz + 0.025, Math.PI / 2, 0, 0, 12));   // insulated standoffs
+    for (let i = 0; i < 6; i++) { p.cyl(M.brass, 0.006, 0.012, bx - 0.016 + (i % 2) * 0.032, by - 0.13 + i * 0.05, bz + 0.009, Math.PI / 2, 0, 0, 8); }
+    // jumpers: bar -> lower rack rear post, bar -> upper rack rear post, and a bond from the rack up to the ladder rack
+    p.tube(M.bond, [V(bx + 0.02, by - 0.13, bz + 0.012), V(bx + 0.14, by - 0.2, bz + 0.1), V(-0.285, 0.22, -0.40)], 0.0065, 28, 6, 0.5);
+    p.tube(M.bond, [V(bx + 0.02, by + 0.13, bz + 0.012), V(bx + 0.12, by + 0.5, bz + 0.1), V(-0.285, 1.5, -0.40)], 0.0065, 36, 6, 0.5);
+    p.tube(M.bond, [V(-0.285, 2.02, -0.40), V(-0.34, 2.16, -0.3), V(-0.15, 2.3, -0.15)], 0.0055, 24, 6, 0.5);
+    [[-0.285, 0.22, -0.40], [-0.285, 1.5, -0.40], [-0.285, 2.02, -0.40]].forEach((l) => p.box(M.brass, 0.014, 0.022, 0.006, l[0], l[1], l[2] - 0.02));
     busbar.add(p.build({ cast: true }));
   })();
 
@@ -528,7 +527,7 @@ export async function mount(el, options) {
   const Sx = window.HybStage;
   const labels = Sx.createLabels({ frame, vb: VB, draw: DRAW, mode: 'lr', max: 3 });
   const LAB = {
-    1: [['Overhead ladder rack', 0.55, 2.35, 0], ['Grounding busbar', -0.52, 0.5, 0.3]],
+    1: [['Overhead ladder rack', 0.55, 2.35, 0], ['Grounding busbar', -0.74, 0.62, -0.5]],
     2: [['Vertical manager', -0.355, 1.5, 0.43], ['Horizontal manager', 0.1, yU(38), 0.43]],
     3: [['Fiber enclosure', 0.15, yU(41, 2), ZF], ['Copper patch panel', 0.15, yU(39), ZF], ['Port positions labeled', -0.1, yU(35), ZF]],
     4: [['Switch', 0.1, yU(37), ZF], ['Port LEDs', -0.12, yU(33) + 0.01, ZF]],

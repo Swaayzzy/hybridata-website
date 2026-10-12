@@ -63,7 +63,7 @@ Made by `build-home3d/scripts/make-assets.py`: maps resized to 256 px (phones) a
 
 | File | Bytes | SHA-256 |
 | --- | --- | --- |
-| `assets/3d/home-building.3d.js` | 595576 | `dbb0d1d8d466b880b5a697acb8abf7747e26fa269e2059c22630223854b53393` |
+| `assets/3d/home-building.3d.js` | 595615 | `4879a426b9e614b5cabc17138a52f501517a334d5de48a16152c5558ac52c064` |
 
 Rebuild: `cd build-home3d && npm ci && npm run assets && npm run build`. esbuild 0.28.2 is a dev-only dependency; the lockfile carries the integrity values Security passed (three 0.185.1, esbuild 0.28.2, @esbuild/linux-x64 0.28.2).
 
@@ -110,8 +110,34 @@ Made by `build-home3d/scripts/make-assets-rack.py`: maps resized to 256 px (phon
 
 | File | Bytes | SHA-256 |
 | --- | --- | --- |
-| `assets/3d/rack.3d.js` | 582947 | `da2acf1ab86e78e2930f9813cf44ec876baa2bc4d9f3c45a9c3ec58983ecd312` |
+| `assets/3d/rack.3d.js` | 582912 | `de932fc2466fea329b60536e431c3123d0097cfd802791b1bf5510f802649f75` |
 
 Rebuild: `cd build-home3d && npm ci && python3 scripts/make-assets-rack.py && node scripts/build-rack.mjs`, then `python3 scripts/licenses-rack.py`. Same pinned, lockfile-verified esbuild 0.28.2 (dev only) as the home section.
 
 <!-- rack:end -->
+
+## three.js licence notice (MIT)
+
+Three.js 0.185.1 is bundled and minified into `assets/3d/home-building.3d.js` and `assets/3d/rack.3d.js`. Its licence text, as shipped in the package:
+
+> The MIT License
+>
+> Copyright © 2010-2026 three.js authors
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in
+> all copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+> THE SOFTWARE.
