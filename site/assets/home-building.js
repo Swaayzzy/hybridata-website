@@ -34,6 +34,7 @@
     access: [{ text: 'Readers on door frames', ax: 399, ay: 280 }, { text: 'Panel in the IDF', ax: 231, ay: 291 }]
   };
 
+  window.__hybLabelCheck = window.__hybLabelCheck || {};
   var toggle = S.initToggle(section, 'home');
   var labels = S.createLabels({ frame: frame, vb: { w: 640, h: 600 }, draw: { x: 0, y: 78, w: 640, h: 462 }, mode: 'tb', max: 3 });
   var stage = 0, focus = '';
@@ -42,7 +43,8 @@
     S.applyStage(svg, focus ? 8 : stage, focus);
     if (focus) bld.setAttribute('data-focus', focus); else bld.removeAttribute('data-focus');
     bld.setAttribute('data-stage', String(focus ? 8 : stage));
-    labels.show(focus ? FOCUS_LABELS[focus] : LABELS[stage]);
+    if (toggle.view === '3d' && toggle.handle) { labels.show([]); toggle.handle.setState(stage, focus); window.__hybLabelCheck.home = toggle.handle.check; }
+    else { labels.show(focus ? FOCUS_LABELS[focus] : LABELS[stage]); window.__hybLabelCheck.home = labels.check; }
     steps.forEach(function (st, i) { st.classList.toggle('is-active', i + 1 === stage); });
     if (status) status.textContent = 'Stage ' + stage + ' of 8: ' + NAMES[stage - 1];
     if (prev) prev.disabled = stage <= 1;
@@ -110,10 +112,19 @@
     });
   });
 
+  toggle.onChange(function () { render(); });
   section.classList.add('is-ready');
   stage = activeFromScroll();
   render();
-  window.__hybLabelCheck = window.__hybLabelCheck || {};
-  window.__hybLabelCheck.home = labels.check;
+  // Capable devices get the 3D view by default, fetched only when the section nears the screen.
+  // ?eager=1 (testing only, used by the QA gate) mounts at once instead of waiting for the section to near the screen.
+  if (!S.force2DReason() && /[?&]eager=1\b/.test(location.search)) {
+    toggle.set('3d');
+  } else if (!S.force2DReason() && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); toggle.set('3d'); }
+    }, { rootMargin: '400px 0px' });
+    io.observe(section);
+  }
   window.__hybHome = { setStage: setStage, get stage() { return stage; }, view: function () { return toggle.view; } };
 })();

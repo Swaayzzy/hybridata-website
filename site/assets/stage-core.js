@@ -7,7 +7,7 @@
 
   // Lazy-loader stub. When a 3D bundle ships, add its file name here, e.g. BUNDLES.home = 'home-building.3d.js'.
   // The file lives in assets/3d/ and must export mount(el, options) -> { destroy() }. See assets/3d/README.md.
-  var BUNDLES = {};
+  var BUNDLES = { home: 'home-building.3d.js' };
   var BUNDLE_BASE = 'assets/3d/';
 
   function reduceMotion() { return mqReduce.matches; }
@@ -22,11 +22,16 @@
   // Returns why the simple 2D view must be used, or '' when 3D would be allowed.
   function force2DReason() {
     var conn = navigator.connection || {};
+    var mode = /[?&]mode=(2d|3d)\b/.exec(location.search);
+    if (mode && mode[1] === '2d') return 'simple view requested';
     if (reduceMotion()) return 'reduced motion';
     if (conn.saveData) return 'Save-Data';
-    if (window.innerWidth <= 360) return 'narrow screen';
-    if (navigator.deviceMemory && navigator.deviceMemory <= 2) return 'low-memory device';
-    if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) return 'low-power device';
+    // ?mode=3d (testing only) skips the size and hardware checks, never the motion, data or WebGL checks. ?eager=1 mounts at once.
+    if (!mode) {
+      if (window.innerWidth <= 360) return 'narrow screen';
+      if (navigator.deviceMemory && navigator.deviceMemory <= 2) return 'low-memory device';
+      if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) return 'low-power device';
+    }
     if (!webglOk()) return 'no WebGL';
     return '';
   }
@@ -51,8 +56,8 @@
     var mount = section.querySelector('[data-3d-mount]');
     var reason = force2DReason();
     var has3D = !!BUNDLES[name];
-    var current = '2d';
-    section.dataset.view = '2d';
+    var current = '2d', handle = null, listeners = [];
+    section.dataset.view = '2d'; root.setAttribute('data-tier', '2d');
     section.dataset.modeReason = reason || (has3D ? '' : '3D bundle not installed');
     if (btn2d) btn2d.setAttribute('aria-pressed', 'true');
     if (btn3d) {
@@ -63,25 +68,35 @@
       if (reason) note.textContent = 'Simple view is on (' + reason + ').';
       else if (!has3D) note.textContent = '3D view is not installed on this build yet.';
     }
+    var loading = false;
     function set(view) {
       if (view === '3d') {
         if (!has3D || reason) return;
+        if (loading) return;
+        loading = true; btn3d.setAttribute('aria-busy', 'true');
+        mount.hidden = false;
         load3D(name, mount, { reduceMotion: reduceMotion() }).then(function (h) {
-          if (!h) return;
-          current = '3d'; section.dataset.view = '3d';
-          mount.hidden = false;
+          loading = false; btn3d.removeAttribute('aria-busy');
+          if (!h) { mount.hidden = true; return; }
+          handle = h; current = '3d'; section.dataset.view = '3d'; root.setAttribute('data-tier', '3d');
           btn2d.setAttribute('aria-pressed', 'false'); btn3d.setAttribute('aria-pressed', 'true');
+          listeners.forEach(function (fn) { fn('3d', handle); });
+        }).catch(function () {
+          loading = false; btn3d.removeAttribute('aria-busy'); mount.hidden = true;
+          if (note) note.textContent = '3D view could not load. Simple view is on.';
         });
       } else {
-        current = '2d'; section.dataset.view = '2d';
+        current = '2d'; section.dataset.view = '2d'; root.setAttribute('data-tier', '2d');
+        if (handle && handle.destroy) { handle.destroy(); handle = null; }
         if (mount) mount.hidden = true;
+        listeners.forEach(function (fn) { fn('2d', null); });
         if (btn2d) btn2d.setAttribute('aria-pressed', 'true');
         if (btn3d) btn3d.setAttribute('aria-pressed', 'false');
       }
     }
     if (btn2d) btn2d.addEventListener('click', function () { set('2d'); });
     if (btn3d) btn3d.addEventListener('click', function () { set('3d'); });
-    return { get view() { return current; }, set: set };
+    return { get view() { return current; }, get handle() { return handle; }, set: set, onChange: function (fn) { listeners.push(fn); } };
   }
 
   // Show every layer whose data-from <= stage; mark layers of the focused system.
