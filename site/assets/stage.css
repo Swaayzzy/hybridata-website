@@ -150,7 +150,7 @@
   .hwb-player { display: block; }
   .stage-frame.is-home { height: auto; aspect-ratio: 640 / 620; max-height: 64svh; }
   .stage-frame.is-rack { height: auto; aspect-ratio: 480 / 680; max-height: 64svh; max-width: 520px; margin-inline: auto; }
-  .hwb-readout { min-height: 0; margin-top: 6px; }
+  .hwb-readout { min-height: 150px; margin-top: 6px; }
   .hwb-num { font-size: 15px; }
   .hwb-name { margin: 0 0 4px; font-size: 24px; }
   .hwb-caption { min-height: 66px; }
@@ -160,6 +160,20 @@
   .hwb-controls { margin-top: 6px; min-height: 124px; }
   .hwb-btns { margin-top: 6px; }
   .hwb-more { margin-top: 24px; }
+}
+
+/* Reserve the readout height (number, name, longest caption, tags) so Play, Replay, Prev/Next and the dots stay put between steps.
+   Heights are the tallest measured step of either tab at that width. */
+@media (max-width: 460px) {
+  .hwb-readout { min-height: 192px; }
+}
+@media (min-width: 901px) and (max-width: 1079px) {
+  .hwb-readout { min-height: 240px; }
+}
+
+/* Narrow phones: 8 dots would wrap 7 + 1, so lay them out 4 + 4. The 6 rack dots fit one row and stay flex. */
+@media (max-width: 384px) {
+  .hwb-dots:has(.hwb-dot:nth-child(8)) { display: grid; grid-template-columns: repeat(4, 44px); }
 }
 
 /* Phones: the art is cropped by hwb-fx.js (building about 90% of the width), so the frame follows the crop's proportions */
