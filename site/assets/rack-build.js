@@ -100,19 +100,29 @@
   window.__hybRack = { set: set, get stop() { return stop; }, view: function () { return toggle.view; } };
   window.__hybLabelCheck.rack = labels.check;
 
-  // 3D view: load the bundle when the section nears the screen (the 2D rack shows until it is ready).
+  // 3D view. Same start rule as the home section: it starts only when ALL of these hold: the page has loaded, the browser has been
+  // idle (2 s timeout fallback), and the section is within 100 px of the screen or the visitor has scrolled or touched the page.
+  // The 2D rack stays in place until the 3D canvas is attached (same frame size, no layout shift).
   // ?eager=1 (testing only, used by the QA gate) mounts at once.
-  // It starts after the page has loaded and the browser is idle, so it never competes with the first paint.
-  function whenIdle(fn) {
-    function go() { if (window.requestIdleCallback) window.requestIdleCallback(fn, { timeout: 1500 }); else setTimeout(fn, 250); }
-    if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true });
-  }
   if (!S.force2DReason() && /[?&]eager=1\b/.test(location.search)) {
     toggle.set('3d');
   } else if (!S.force2DReason() && 'IntersectionObserver' in window) {
-    var io3 = new IntersectionObserver(function (es) {
-      if (es.some(function (e) { return e.isIntersecting; })) { io3.disconnect(); whenIdle(function () { toggle.set('3d'); }); }
-    }, { rootMargin: '400px 0px' });
+    var idle = false, near = false, touched = false, started = false;
+    var io3 = new IntersectionObserver(function (es) { near = es.some(function (e) { return e.isIntersecting; }); go(); }, { rootMargin: '100px 0px' });
+    var kinds = ['scroll', 'touchstart', 'wheel', 'keydown'];
+    var onInput = function () { touched = true; go(); };
+    var go = function () {
+      if (started || !idle || !(near || touched)) return;
+      started = true; io3.disconnect();
+      kinds.forEach(function (k) { window.removeEventListener(k, onInput); });
+      toggle.set('3d');
+    };
+    kinds.forEach(function (k) { window.addEventListener(k, onInput, { passive: true }); });
     io3.observe(section);
+    var afterLoad = function () {
+      if (window.requestIdleCallback) window.requestIdleCallback(function () { idle = true; go(); }, { timeout: 2000 });
+      else setTimeout(function () { idle = true; go(); }, 2000);
+    };
+    if (document.readyState === 'complete') afterLoad(); else window.addEventListener('load', afterLoad, { once: true });
   }
 })();

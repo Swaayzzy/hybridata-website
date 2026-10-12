@@ -5,10 +5,11 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = path.join(here, '..', '..', 'site', 'assets', '3d', 'rack.3d.js');
+// TRACE_OUT=<file> writes a readable (unminified) copy for profiling instead of the shipped bundle.
+const out = process.env.TRACE_OUT || path.join(here, '..', '..', 'site', 'assets', '3d', 'rack.3d.js');
 await build({
   entryPoints: [path.join(here, '..', 'src', 'rack.js')],
-  outfile: out, bundle: true, format: 'esm', minify: true, target: 'es2020', platform: 'browser',
+  outfile: out, bundle: true, format: 'esm', minify: !process.env.TRACE_OUT, target: 'es2020', platform: 'browser',
   legalComments: 'none', define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'info'
 });
 const buf = readFileSync(out);

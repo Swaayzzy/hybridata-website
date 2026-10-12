@@ -3,7 +3,7 @@
    so the slider is reversible and always settles on a clean stop. Render on demand: frames are drawn only while p is moving. */
 import {
   WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, DirectionalLight,
-  TextureLoader, SRGBColorSpace, RepeatWrapping, EquirectangularReflectionMapping, PMREMGenerator, ACESFilmicToneMapping,
+  TextureLoader, ImageBitmapLoader, Texture, SRGBColorSpace, RepeatWrapping, EquirectangularReflectionMapping, PMREMGenerator, ACESFilmicToneMapping,
   Color, Vector3, Matrix4, CanvasTexture, LinearMipmapLinearFilter, PCFShadowMap, CircleGeometry, BoxGeometry,
   CylinderGeometry, SphereGeometry, HemisphereLight, InstancedMesh, AdditiveBlending, DoubleSide, PlaneGeometry
 } from 'three';
@@ -32,7 +32,8 @@ const POSE = [   // per stop: camera yaw (rad), look-at x, half width kept in fr
 const TABLET = { x: 0.4, y: 0.82, z: 0.8 };
 const MODEL_X = 0.6, MODEL_Y0 = 0.0, MODEL_Y1 = 2.45;
 
-const yieldMain = () => new Promise((r) => setTimeout(r, 0));
+// Yield to the browser between build chunks: scheduler.yield() where it exists, else a 0 ms timeout.
+const yieldMain = () => (self.scheduler && self.scheduler.yield ? self.scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
 
 export async function mount(el, options) {
   options = options || {};
@@ -65,6 +66,8 @@ export async function mount(el, options) {
   const snap = !!options.reduceMotion;
 
   /* ---------- textures and materials ---------- */
+  // Maps are fetched (same origin, connect-src 'self') and decoded off the main thread with createImageBitmap; no blob: URL.
+  const bmLoader = typeof createImageBitmap === 'function' ? new ImageBitmapLoader().setOptions({ imageOrientation: 'flipY' }) : null;
   const loader = new TextureLoader();
   const texCache = {};
   function done() { pending--; invalidate(); if (pending === 0 && onAllLoaded) onAllLoaded(); }
@@ -72,7 +75,14 @@ export async function mount(el, options) {
     const key = base + set + kind;
     if (texCache[key]) return texCache[key];
     pending++;
-    const t = loader.load(base + 'tex' + tier + '/' + set + '_' + kind + '.webp', done, undefined, () => { loadedErr++; done(); });
+    const url = base + 'tex' + tier + '/' + set + '_' + kind + '.webp';
+    let t;
+    if (bmLoader) {
+      t = new Texture();
+      bmLoader.load(url, (bm) => { t.image = bm; t.needsUpdate = true; done(); }, undefined, () => { loadedErr++; done(); });
+    } else {
+      t = loader.load(url, done, undefined, () => { loadedErr++; done(); });
+    }
     t.wrapS = t.wrapT = RepeatWrapping;
     if (kind === 'Color') t.colorSpace = SRGBColorSpace;
     t.anisotropy = phone ? 2 : 6;
@@ -153,6 +163,7 @@ export async function mount(el, options) {
 
   /* ---------- stop 1: floor, rack frame, rails, ladder rack, busbar, bonding ---------- */
   const staticG = new Group(); world.add(staticG);
+  await yieldMain();
   (function () {
     const c = document.createElement('canvas'); c.width = c.height = 128;
     const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 20, 64, 64, 64);
@@ -163,6 +174,7 @@ export async function mount(el, options) {
     floor.material.normalMap.repeat.set(3, 3); floor.material.roughnessMap.repeat.set(3, 3);
     floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0.0, 0.1); floor.receiveShadow = true; staticG.add(floor);
   })();
+  await yieldMain();
   (function () {
     const p = part(), H = 42 * U;
     // four posts + top and bottom frames (open frame: no side panels, so the inside stays visible)
@@ -186,6 +198,7 @@ export async function mount(el, options) {
     const ticks = []; for (let u = 6; u <= 42; u += 6) ticks.push(mat(-(RW / 2 + 0.034), yU(u), 0.41 + 0.002));
     staticG.add(inst(new BoxGeometry(0.008, 0.004, 0.002), M.white, ticks));
   })();
+  await yieldMain();
   (function () {   // overhead ladder rack: two side rails, instanced rungs, hanger rods, a stub of the run in each direction
     const p = part(), y = 2.34, hw2 = 0.15, L = 1.1;
     p.box(M.steel, 2 * L, 0.05, 0.02, 0, y, hw2, 0.4); p.box(M.steel, 2 * L, 0.05, 0.02, 0, y, -hw2, 0.4);
@@ -199,6 +212,7 @@ export async function mount(el, options) {
     staticG.add(inst(new BoxGeometry(0.025, 0.012, 2 * hw2), M.steel, rungs));
   })();
   const busbar = new Group(); staticG.add(busbar);
+  await yieldMain();
   (function () {   // grounding busbar on a floor stand, bonded to the rack and to the ladder rack with green jumpers
     const p = part(), bx = -0.52, by = 0.5, bz = 0.3;
     p.box(M.shelf, 0.05, 0.9, 0.02, bx, 0.45, bz - 0.04, 0.4);               // stand
@@ -215,6 +229,7 @@ export async function mount(el, options) {
   })();
 
   /* ---------- stop 2: vertical managers (both sides) and horizontal managers ---------- */
+  await yieldMain();
   (function () {
     [-1, 1].forEach((s, si) => {
       const g = new Group(), p = part(), H = 42 * U + 0.06;
@@ -244,6 +259,7 @@ export async function mount(el, options) {
 
   /* ---------- stop 3: patch panels and the fiber enclosure ---------- */
   const portXs = []; for (let i = 0; i < 24; i++) portXs.push(-0.1926 + i * 0.0168);
+  await yieldMain();
   (function () {
     LAYOUT.filter((l) => l[0] === 'panel' || l[0] === 'fiber').forEach((l, i) => {
       const g = new Group(), p = part(), h = l[2], isF = l[0] === 'fiber';
@@ -280,6 +296,7 @@ export async function mount(el, options) {
 
   /* ---------- stop 4: switches, with port LEDs that come on ---------- */
   const ledMats = [];
+  await yieldMain();
   (function () {
     const ledCol = [new Color(0x3cff7a), new Color(0xffb02e)];
     LAYOUT.filter((l) => l[0] === 'switch').forEach((l, i) => {
@@ -317,6 +334,7 @@ export async function mount(el, options) {
   const cordGroups = [];
   const wrapGroups = [];
   const tagGroups = [];
+  await yieldMain();
   (function () {
     const cc = [M.cordBlue, M.cordGray, M.cordGreen, M.cordBlue, M.cordOrange, M.cordGray, M.cordBlue, M.cordGreen];
     PAIRS.forEach((pr, pi) => {
@@ -368,6 +386,7 @@ export async function mount(el, options) {
   const drawer = new Group(), sleeves = new Group();
   let trunkMesh = null, tabletTex = null, tabletCtx = null, traceP = -1;
   const SPL = { x: -0.04, y: yU(41, 2) - 0.03, z: 0.43 + 0.34 };
+  await yieldMain();
   (function () {
     // trunk: yellow OS2-style cable from the ladder rack down into the enclosure, strapped with hook-and-loop wraps
     const p = part();
@@ -562,12 +581,30 @@ export async function mount(el, options) {
       const buildMs = Math.round(performance.now() - tStart);
       // Warm every shader once at the fully built state, then step back, so no stop change hitches later.
       const saved = st.p; apply(6);
-      const compile = renderer.extensions.has('KHR_parallel_shader_compile') ? () => renderer.compileAsync(scene, camera) : () => { renderer.compile(scene, camera); return Promise.resolve(); };
+      // 1) upload each map in its own task, 2) link one representative mesh per distinct program in its own task,
+      // 3) draw each top-level group once (uploads its buffers). Nothing here is longer than one GL call.
+      for (const t of Object.keys(texCache)) { try { renderer.initTexture(texCache[t]); } catch (e) { /* uploaded on first draw instead */ } await yieldMain(); }
+      const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
       const kids = world.children.slice();
+      const seen = new Set(), reps = [], all = [];
+      scene.traverse((o) => {
+        if (!o.isMesh) return;
+        all.push([o, o.visible]);
+        const key = o.material.uuid + (o.isInstancedMesh ? 'i' : 'm') + (o.geometry.attributes.color ? 'c' : '') + (o.geometry.attributes.uv ? 'u' : '');
+        if (!seen.has(key)) { seen.add(key); reps.push(o); }
+      });
+      for (const rep of reps) {
+        all.forEach((q) => { q[0].visible = q[0] === rep; });
+        const chain = []; for (let o = rep.parent; o; o = o.parent) { chain.push([o, o.visible]); o.visible = true; }
+        try { if (parallel) await renderer.compileAsync(scene, camera); else renderer.compile(scene, camera); } catch (e) { /* first draw compiles instead */ }
+        chain.forEach((c) => { c[0].visible = c[1]; });
+        await yieldMain();
+      }
+      all.forEach((q) => { q[0].visible = q[1]; });
       for (const k of kids) {
         const hidden = kids.filter((o) => o !== k && o.visible);
         hidden.forEach((o) => { o.visible = false; });
-        try { await compile(); } catch (e) { /* first render compiles instead */ }
+        renderer.render(scene, camera);
         hidden.forEach((o) => { o.visible = true; });
         await yieldMain();
       }

@@ -12,11 +12,17 @@
 
   function reduceMotion() { return mqReduce.matches; }
 
+  var glOk = null;   // creating a WebGL context is costly (hundreds of ms on software GL), so ask once
   function webglOk() {
+    if (glOk !== null) return glOk;
     try {
       var c = document.createElement('canvas');
-      return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')));
-    } catch (e) { return false; }
+      var ctx = window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl'));
+      glOk = !!ctx;
+      var lose = ctx && ctx.getExtension && ctx.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();   // release the probe context
+      return glOk;
+    } catch (e) { return (glOk = false); }
   }
 
   // Returns why the simple 2D view must be used, or '' when 3D would be allowed.
