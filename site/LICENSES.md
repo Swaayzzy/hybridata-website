@@ -1,6 +1,6 @@
 # Third-party assets and licences
 
-What `site/` actually serves. Updated for LIGHT-502, which removed the 3D view: three.js, the Poly Haven HDRI and the ambientCG textures (all CC0 / MIT) are **no longer served** and are not listed. They remain in git history (commits `42cf8cb`, `bf9463d`, `894dc58`) and their Security intake record is LIGHT-476.
+What `site/` actually serves. Updated for LIGHT-503 (adds `assets/hwb-fx.js` and the 2.5D art; no new third-party asset) and LIGHT-502, which removed the 3D view: three.js, the Poly Haven HDRI and the ambientCG textures (all CC0 / MIT) are **no longer served** and are not listed. They remain in git history (commits `42cf8cb`, `bf9463d`, `894dc58`) and their Security intake record is LIGHT-476.
 
 ## Served and third-party
 
@@ -13,7 +13,7 @@ What `site/` actually serves. Updated for LIGHT-502, which removed the 3D view: 
 ## Served and original to this project
 
 - `assets/hwb/*.svg` (How We Build stills, LIGHT-501) and the inline SVG drawings on `how-we-build.html`: drawn in code by `scripts/hwb/` (generic building and rack, unbranded). No third-party artwork.
-- `assets/how-we-build.js`, `assets/stage.css`, `assets/site.js`, `assets/site.bundle.css`, logo and share image: Hybridata's own.
+- `assets/how-we-build.js`, `assets/hwb-fx.js`, `assets/stage.css`, `assets/site.js`, `assets/site.bundle.css`, logo and share image: Hybridata's own.
 
 No JavaScript library, icon set, WebGL or canvas code is shipped, and nothing loads from a third-party host.
 

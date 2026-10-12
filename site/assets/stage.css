@@ -6,7 +6,7 @@
 
 /* Tabs */
 .hwb-tablist { display: flex; gap: 0; margin: 0 0 18px; border-bottom: 1px solid var(--line-strong); }
-.hwb:not(.is-ready) .hwb-tablist { display: none; }
+.hwb:not(.is-ready) .hwb-tablist { visibility: hidden; }
 .hwb-tablist [role="tab"] { flex: 1 1 0; min-height: 48px; padding: 0 16px; color: var(--paper); background: transparent; border: 0; border-bottom: 4px solid transparent; font: 700 16px/1.1 var(--body); cursor: pointer; }
 .hwb-tablist [role="tab"][aria-selected="true"] { color: var(--cyan-light); border-bottom-color: var(--cyan); background: var(--panel-raised); }
 .hwb-tablist [role="tab"]:focus-visible, .hwb-panel:focus-visible { outline: 3px solid var(--cyan-light); outline-offset: -3px; }
@@ -19,14 +19,14 @@
 .stage-frame svg.bld-svg, .stage-frame svg.rack-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hwb-side { min-width: 0; }
 .hwb-readout { min-height: 190px; }
-.hwb-num { margin: 0; font-family: var(--display); font-size: 18px; letter-spacing: .08em; color: var(--cyan); text-transform: uppercase; }
-.hwb-name { margin: 2px 0 8px; font-family: var(--display); font-size: 32px; line-height: 1.05; text-transform: uppercase; }
+.hwb-num { min-height: 1.3em; margin: 0; font-family: var(--display); font-size: 18px; letter-spacing: .08em; color: var(--cyan); text-transform: uppercase; }
+.hwb-name { min-height: 1.05em; margin: 2px 0 8px; font-family: var(--display); font-size: 32px; line-height: 1.05; text-transform: uppercase; }
 .hwb-caption p { margin: 0; color: #dbe8ec; font-size: 16px; }
 .hwb-caption .note { margin-top: 6px; font-size: 14px; color: #a5b5bd; }
 .hwb-tags-live { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .hwb-tags-live li { padding: 3px 8px; font-size: 12px; line-height: 1.25; font-weight: 600; color: #04161d; background: var(--cyan-light); border-radius: 3px; }
 .hwb-steps { margin: 0; padding: 0; list-style: none; }
-.hwb.is-ready .hwb-steps { display: none; }
+.hwb .hwb-steps { display: none; }
 .hwb:not(.is-ready) .hwb-steps li { padding: 14px 0 14px 18px; border-left: 3px solid var(--line); }
 .hwb:not(.is-ready) .hwb-tags { display: none; }
 .picker-panel .hwb-tags { display: none; }
@@ -62,43 +62,84 @@
 .picker-out .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; }
 .picker-h { margin: 0 0 10px; font-size: 18px; }
 
-/* SVG layers: shown from their step, dimmed when another system is picked */
-.hyb-stage svg .L { opacity: 0; transition: opacity .45s ease, transform .45s ease; }
+/* Art layers (LIGHT-503). scripts/hwb/ emits .L[data-from][data-system] groups; the player adds .on for every layer whose
+   step has been reached. Only transform, opacity and stroke-dashoffset are animated. */
+.hyb-stage svg .L { opacity: 0; transition: opacity .5s ease, transform .6s ease; }
 .hyb-stage svg .L.on { opacity: 1; }
-.hyb-stage svg .roof { transition: transform .6s ease, opacity .6s ease; }
-.hyb-stage svg .facade { transition: opacity .6s ease; }
-.bld[data-stage="1"] .facade { opacity: 1; }
-.bld:not([data-stage="1"]) .facade { opacity: 0; }
-.bld:not([data-stage="1"]) .roof { transform: translateY(-34px); opacity: .25; }
-.bld[data-focus] .L:not(.is-focus) { opacity: .1; }
-.bld[data-focus] .facade { opacity: 0; }
-.hyb-stage svg .flow { animation: hybflow 1.6s linear infinite; }
-.hyb-stage svg .bloom { transform-box: fill-box; transform-origin: center; animation: hybbloom 3.2s ease-in-out infinite; }
-.hyb-stage svg .led { animation: hybblink 1.4s steps(2, jump-none) infinite; }
-.hyb-stage svg .flash { transform-box: fill-box; transform-origin: center; animation: hybflash 1.2s ease-in-out infinite; }
-.hyb-stage svg .trace { stroke-dasharray: 400; stroke-dashoffset: 0; }
-.rack[data-stop="6"] .trace { animation: hybdraw 1.6s ease-out; }
+/* cable runs draw along their path (pathLength=1), and un-draw when you jump back */
+.hyb-stage svg .draw { stroke-dasharray: 1; stroke-dashoffset: 1; stroke-linecap: butt; transition: stroke-dashoffset .9s ease-in-out; }
+.hyb-stage svg .L.on .draw { stroke-dashoffset: 0; }
+.hyb-stage svg .L.on .dl1 { transition-delay: .15s; }
+.hyb-stage svg .L.on .dl2 { transition-delay: .35s; }
+.hyb-stage svg .L.on .dl3 { transition-delay: .55s; }
+/* things that arrive with a small move */
+.hyb-stage svg .L.up:not(.on) { transform: translateY(-34px); }
+.hyb-stage svg .L.peel:not(.on) { transform: translateY(-18px); }
 .hyb-stage svg .L.vml:not(.on) { transform: translateX(-28px); }
 .hyb-stage svg .L.vmr:not(.on) { transform: translateX(28px); }
-.hyb-stage svg .L.cp:not(.on), .hyb-stage svg .L.fe:not(.on), .hyb-stage svg .L.sw:not(.on) { transform: translateY(-10px); }
+.hyb-stage svg .L.unit:not(.on) { transform: translateY(-12px); }
+.hyb-stage svg .L.pop { transform-box: fill-box; transform-origin: center; }
+.hyb-stage svg .L.pop:not(.on) { transform: scale(.55); }
+.hyb-stage svg .L.wrap { transform-box: fill-box; transform-origin: left center; }
+.hyb-stage svg .L.wrap:not(.on) { transform: scaleX(0); }
+.hyb-stage svg .L.on.u2, .hyb-stage svg .L.on.dw2, .hyb-stage svg .L.on.fade2 { transition-delay: .15s; }
+.hyb-stage svg .L.on.u3, .hyb-stage svg .L.on.dw3, .hyb-stage svg .L.on.fade3 { transition-delay: .3s; }
+.hyb-stage svg .L.on.u4, .hyb-stage svg .L.on.dw4 { transition-delay: .45s; }
+.hyb-stage svg .L.on.u5, .hyb-stage svg .L.on.dw5 { transition-delay: .6s; }
+.hyb-stage svg .L.on.u6 { transition-delay: .75s; }
+/* coverage ripple grows out from under its AP */
+.hyb-stage svg .rip { transform-box: fill-box; transform-origin: center; transition: transform .9s ease-out; }
+.hyb-stage svg .L:not(.on) .rip { transform: scale(.35); }
+/* building: closed facade and roof at stage 1, then they lift away */
+.hyb-stage svg .facade { transition: opacity .6s ease; }
+.hyb-stage svg .roof { transition: transform .7s ease, opacity .7s ease; }
+.bld:not([data-stage="1"]) .facade { opacity: 0; }
+.bld:not([data-stage="1"]) .roof { transform: translateY(-34px); opacity: .22; }
+/* service picker: the chosen system stays bright, the building shell dims, the rest nearly vanishes */
+.bld[data-focus] .L:not(.is-focus) { opacity: .12; }
+.bld[data-focus] .L[data-system=""]:not(.is-focus) { opacity: .38; }
+.bld[data-focus] .facade { opacity: 0; }
+/* callouts: only the current step's labels (or the picked system's) show; the phone set is bigger type, fewer words */
+.hyb-stage svg .lbl, .hyb-stage svg .tg { opacity: 0; transition: opacity .35s ease; }
+.hyb-stage svg .lbl-n, .hyb-stage svg .tg-n { display: none; }
+@media (max-width: 680px) { .hyb-stage svg .lbl-w, .hyb-stage svg .tg-w { display: none; } .hyb-stage svg .lbl-n, .hyb-stage svg .tg-n { display: inline; } }
+.bld[data-stage="1"]:not([data-focus]) .lbl.s1, .bld[data-stage="2"]:not([data-focus]) .lbl.s2, .bld[data-stage="3"]:not([data-focus]) .lbl.s3,
+.bld[data-stage="4"]:not([data-focus]) .lbl.s4, .bld[data-stage="5"]:not([data-focus]) .lbl.s5, .bld[data-stage="6"]:not([data-focus]) .lbl.s6,
+.bld[data-stage="7"]:not([data-focus]) .lbl.s7, .bld[data-stage="8"]:not([data-focus]) .lbl.s8,
+.rack[data-stage="1"] .lbl.s1, .rack[data-stage="2"] .lbl.s2, .rack[data-stage="3"] .lbl.s3, .rack[data-stage="4"] .lbl.s4,
+.rack[data-stage="5"] .lbl.s5, .rack[data-stage="6"] .lbl.s6,
+.bld[data-focus="fiber"] .lbl.f-fiber, .bld[data-focus="cabling"] .lbl.f-cabling, .bld[data-focus="wireless"] .lbl.f-wireless,
+.bld[data-focus="surveillance"] .lbl.f-surveillance, .bld[data-focus="access"] .lbl.f-access { opacity: 1; }
+/* "(illustrative)" printed on the coverage ripple (home, from stage 5) and on the test trace (rack, step 6) */
+.bld[data-stage="5"]:not([data-focus]) .tg, .bld[data-stage="6"]:not([data-focus]) .tg, .bld[data-stage="7"]:not([data-focus]) .tg,
+.bld[data-stage="8"]:not([data-focus]) .tg, .bld[data-focus="wireless"] .tg, .rack[data-stage="6"] .tg { opacity: 1; }
+/* loops: only while a layer is on, and only while the player runs */
+.hyb-stage svg .L.on .rip2 { animation: hybring 3.2s ease-in-out infinite; }
+.hyb-stage svg .L.on .led { animation: hybblink 1.4s steps(2, jump-none) infinite; }
+.hyb-stage svg .L.on .cone { animation: hybcone 3.6s ease-in-out infinite; }
+.hyb-stage svg .L.on .reader { animation: hybflash 1.6s ease-in-out infinite; }
+.hyb-stage svg .L.on.flash { animation: hybflash 1.4s ease-in-out infinite; }
 /* Nothing animates unless the player is running: off screen, hidden tab, paused by the visitor. */
 .hwb-panel.is-paused svg * { animation-play-state: paused; }
-@keyframes hybflow { to { stroke-dashoffset: -48; } }
-@keyframes hybbloom { 0%, 100% { transform: scale(.92); } 50% { transform: scale(1.04); } }
-@keyframes hybblink { 50% { opacity: .25; } }
-@keyframes hybflash { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
-@keyframes hybdraw { from { stroke-dashoffset: 400; } to { stroke-dashoffset: 0; } }
+@keyframes hybring { 0%, 100% { opacity: .35; } 50% { opacity: .85; } }
+@keyframes hybblink { 50% { opacity: .3; } }
+@keyframes hybcone { 0%, 100% { opacity: .2; } 50% { opacity: .34; } }
+@keyframes hybflash { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.hyb-stage svg .px { will-change: auto; }
 
-/* Reduced motion: no transitions, no loops, no parallax. */
+/* Reduced motion: same art, static. No transitions, no loops, no parallax. */
 @media (prefers-reduced-motion: reduce) {
-  .hyb-stage svg .L, .hyb-stage svg .roof, .hyb-stage svg .facade { transition: none; }
-  .hyb-stage svg .flow, .hyb-stage svg .bloom, .hyb-stage svg .led, .hyb-stage svg .flash, .rack[data-stop="6"] .trace { animation: none; }
+  .hyb-stage svg .L, .hyb-stage svg .draw, .hyb-stage svg .rip, .hyb-stage svg .roof, .hyb-stage svg .facade, .hyb-stage svg .lbl, .hyb-stage svg .tg { transition: none !important; }
+  .hyb-stage svg * { animation: none !important; }
 }
 
 /* Before JS runs (or without it) show every layer so the drawing is never blank. */
 .hwb:not(.is-ready) svg .L { opacity: 1; transform: none; }
+.hwb:not(.is-ready) svg .draw { stroke-dashoffset: 0; transition: none; }
+.hwb:not(.is-ready) svg .L .rip, .hwb:not(.is-ready) svg .L.pop, .hwb:not(.is-ready) svg .L.wrap { transform: none; }
 .hwb:not(.is-ready) svg .facade { opacity: 0; }
-.hwb:not(.is-ready) .hwb-panel + .hwb-panel { margin-top: 40px; }
+.hwb:not(.is-ready) svg .bld .roof, .hwb:not(.is-ready) svg .roof { opacity: .22; transform: translateY(-34px); }
+.hwb:not(.is-ready) .bld .lbl.s8, .hwb:not(.is-ready) .rack .lbl.s6, .hwb:not(.is-ready) svg .tg { opacity: 1; }
 
 /* Tablet and phone: art, caption and controls stack on one screen */
 @media (max-width: 900px) {
@@ -107,7 +148,8 @@
   .hwb-tablist { margin-bottom: 8px; }
   .hwb-tablist [role="tab"] { min-height: 44px; padding: 0 8px; font-size: 15px; }
   .hwb-player { display: block; }
-  .stage-frame, .stage-frame.is-rack { height: 36svh; min-height: 200px; max-height: 420px; max-width: none; }
+  .stage-frame.is-home { height: auto; aspect-ratio: 640 / 620; max-height: 64svh; }
+  .stage-frame.is-rack { height: auto; aspect-ratio: 480 / 680; max-height: 64svh; max-width: 520px; margin-inline: auto; }
   .hwb-readout { min-height: 0; margin-top: 6px; }
   .hwb-num { font-size: 15px; }
   .hwb-name { margin: 0 0 4px; font-size: 24px; }
@@ -115,12 +157,16 @@
   .hwb-caption p { font-size: 15px; line-height: 1.35; }
   .hwb-caption .note { font-size: 13px; margin-top: 2px; }
   .hwb-tags-live { margin-top: 6px; }
-  .hwb-controls { margin-top: 6px; }
+  .hwb-controls { margin-top: 6px; min-height: 124px; }
   .hwb-btns { margin-top: 6px; }
   .hwb-more { margin-top: 24px; }
 }
 
-@media (max-width: 380px) { .stage-frame, .stage-frame.is-rack { height: 30svh; min-height: 190px; } }
+/* Phones: the art is cropped by hwb-fx.js (building about 90% of the width), so the frame follows the crop's proportions */
+@media (max-width: 680px) {
+  .stage-frame.is-home { aspect-ratio: 640 / 571; max-height: none; }
+  .stage-frame.is-rack { aspect-ratio: 480 / 600; max-height: none; max-width: none; }
+}
 
 /* Teasers on the home page and the data center page */
 .hwb-teaser { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 40px; align-items: center; }

@@ -201,6 +201,10 @@
     self.sync = sync;
     self.activate = function () {
       tabOn = true; focus = ''; clearFocus(false);
+      // Each visit starts from a blank stage so step 1 draws in (LIGHT-503: the art is animated by CSS transitions).
+      var lit = svg.querySelectorAll('.L.on');
+      for (var k = 0; k < lit.length; k++) lit[k].classList.remove('on');
+      void svg.getBoundingClientRect();
       step = 1; elapsed = 0; finished = false;
       wantPlay = !mqReduce.matches;   // reduced motion: opens on step 1, no auto-advance
       render(false); sync();
