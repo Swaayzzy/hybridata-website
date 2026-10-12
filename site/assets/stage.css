@@ -120,7 +120,7 @@ html.hyb-reduce .hyb-stage svg .flow, html.hyb-reduce .hyb-stage svg .bloom, htm
 @media (max-width: 900px) {
   .stage-layout { display: block; }
   /* Keep the stage pinned until the story and picker have fully scrolled past, so it never slides under the site header with copy still on screen. */
-  .home-stage .stage-layout { padding-bottom: calc(var(--hdr) + var(--sticky-h, 55svh)); }
+  .home-stage .stage-layout::after { content: ''; display: block; height: calc(var(--hdr) + var(--sticky-h, 55svh)); }
   .stage-sticky { top: var(--hdr); padding-top: 4px; background: var(--panel); }
   .home-stage .stage-frame { aspect-ratio: auto; height: 42svh; max-height: 520px; min-height: 260px; }
   .rack-stage .stage-frame.is-rack { aspect-ratio: auto; height: 46svh; max-height: 520px; min-height: 260px; max-width: none; }

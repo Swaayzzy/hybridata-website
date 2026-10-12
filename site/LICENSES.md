@@ -63,7 +63,7 @@ Made by `build-home3d/scripts/make-assets.py`: maps resized to 256 px (phones) a
 
 | File | Bytes | SHA-256 |
 | --- | --- | --- |
-| `assets/3d/home-building.3d.js` | 592827 | `09c05ca8f0b590ecacb924ff36dd535bb5252cd985a61570696dba7ec146773f` |
+| `assets/3d/home-building.3d.js` | 593124 | `dda3af824b02fc7e618c1f381f7a1132de15840937df4f056c7585a64f709e8f` |
 
 Rebuild: `cd build-home3d && npm ci && npm run assets && npm run build`. esbuild 0.28.2 is a dev-only dependency; the lockfile carries the integrity values Security passed (three 0.185.1, esbuild 0.28.2, @esbuild/linux-x64 0.28.2).
 

@@ -51,7 +51,9 @@ const FOCUS_LABELS = {
   access: [L('Readers on door frames', 1, 3.03, 1.2, 1.65), L('Panel in the IDF', 1, -11.8, 1.4, -1.2)]
 };
 
-export function mount(el, options) {
+const yieldMain = () => new Promise((r) => setTimeout(r, 0));
+
+export async function mount(el, options) {
   options = options || {};
   const frame = el.parentElement;
   const section = frame.closest('.hyb-stage');
@@ -79,9 +81,12 @@ export function mount(el, options) {
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
   scene.add(sun, sun.target);
 
+  // Declared up front: texture callbacks can fire while the scene is still being built in chunks.
+  let running = false, onscreen = true, lastT = 0, frames = 0, destroyed = false, snap = !!options.reduceMotion, sized = false, scl = 1;
+  let pending = 0, onAllLoaded = null, loadedErr = 0;
+
   /* ---------- textures and materials ---------- */
   const loader = new TextureLoader();
-  let pending = 0, onAllLoaded = null, loadedErr = 0;
   const texCache = {};
   function done() { pending--; invalidate(); if (pending === 0 && onAllLoaded) onAllLoaded(); }
   function tex(set, kind, tile) {
@@ -327,6 +332,7 @@ export function mount(el, options) {
     return g;
   }
 
+  await yieldMain();
   /* ---------- roof ---------- */
   (function () {
     const p = new Part();
@@ -342,6 +348,7 @@ export function mount(el, options) {
     roof.add(p.build({ cast: true, castOnly: B.concrete }));
   })();
 
+  await yieldMain();
   /* ---------- floors ---------- */
   const doorXs = [-3, 2.5, 7.5];
   const readerM = [], riserSleeve = [];
@@ -412,8 +419,8 @@ export function mount(el, options) {
     }
   }
 
-  const rackWraps = [];
-    for (let f = 0; f < 3; f++) {
+  for (let f = 0; f < 3; f++) {
+    await yieldMain(); // one floor per task keeps each main-thread task short
     const g = floors[f];
     const shell = new Part();
     shell.box(M.concrete, 2 * HX + 0.6, slabT, 2 * HZ + 0.6, 0, -slabT / 2, 0, 2.5);
@@ -640,7 +647,6 @@ export function mount(el, options) {
   const state = { stage: 1, focus: '' };
   const cur = { pos: new Vector3(), tgt: new Vector3(), off: [0, 0, 0], glass: 0.8, fov: 34, glow: { fiber: 0, cabling: 0, wireless: 0, surveillance: 0, access: 0 }, field: { wireless: 0, surveillance: 0 }, beads: 0, dim: 0 };
   const goal = { pos: new Vector3(), tgt: new Vector3(), off: [0, 0, 0], glass: 0.8, fov: 34, glow: { fiber: 0, cabling: 0, wireless: 0, surveillance: 0, access: 0 }, field: { wireless: 0, surveillance: 0 }, beads: 0, dim: 0 };
-  let running = false, onscreen = true, lastT = 0, frames = 0, destroyed = false, snap = !!options.reduceMotion;
 
   function setGoal() {
     const st = state.focus ? 8 : state.stage;
@@ -714,7 +720,6 @@ export function mount(el, options) {
 
   /* ---------- sizing: the canvas fills the model band; label bands stay free ---------- */
   const VB = { w: 640, h: 600 }, DRAW = { x: 0, y: 78, w: 640, h: 462 };
-  let sized = false, scl = 1;
   function fit() {
     const W = frame.clientWidth, H = frame.clientHeight;
     if (!W || !H) return;
@@ -777,12 +782,21 @@ export function mount(el, options) {
   let finished = false;
   return new Promise((resolve) => {
     const finish = async () => {
-      // Warm every shader once (all stages visible), in parallel where the browser supports it, so no stage change hitches later.
       if (finished) return; finished = true;
-      const saved = items.map((it) => it.obj.visible); items.forEach((it) => { it.obj.visible = true; });
+      // Warm every shader once, one group per task, so no stage change hitches later and no single task runs long.
+      const saved = items.map((it) => it.obj.visible);
       frameStep(0.016);
+      items.forEach((it) => { it.obj.visible = true; });
       scene.traverse((o) => { if (o.userData && o.userData.field) o.visible = true; });
-      try { if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(scene, camera); else renderer.compile(scene, camera); } catch (e) { /* first render compiles instead */ }
+      const compile = renderer.extensions.has('KHR_parallel_shader_compile') ? () => renderer.compileAsync(scene, camera) : () => { renderer.compile(scene, camera); return Promise.resolve(); };
+      const kids = world.children.slice();
+      for (const k of kids) {
+        const hidden = kids.filter((o) => o !== k && o.visible);
+        hidden.forEach((o) => { o.visible = false; });
+        try { await compile(); } catch (e) { /* first render compiles instead */ }
+        hidden.forEach((o) => { o.visible = true; });
+        await yieldMain();
+      }
       items.forEach((it, i) => { it.obj.visible = saved[i]; });
       applyVisibility();
       el.appendChild(canvas); // attached only once everything is loaded and the first frame is drawn
