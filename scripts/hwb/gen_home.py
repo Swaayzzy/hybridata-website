@@ -1,4 +1,4 @@
-"""How We Build, Building tab: layered 30-degree oblique 2.5D cutaway of a generic three-storey commercial building.
+"""How We Build, Building tab: layered 30-degree oblique 2.5D cutaway of a generic three-story commercial building.
 
 LIGHT-501 drew the still; LIGHT-503 extends this generator so that every one of the 8 stages has its own layers and
 applies the six review fixes (APs in the ceiling grid off the tray, bigger building, OSP conduit up a floor sleeve into
@@ -92,7 +92,7 @@ def build():
     ex0, ex1, ed = -4.0, 15.0, 1.5
     sc.add(poly(P, [P2(-.2, -.1, 0), P2(W + 1.0, -.1, 0), P2(W + 1.8, D + .3, 0), P2(.6, D + .3, 0)], '#000', op=.55, extra='filter="url(#%ssh)"' % ID), 0)
     sc.add(poly(P, [P2(ex0, FY, 0), P2(ex1, FY, 0), P2(ex1, D + .8, 0), P2(ex0, D + .8, 0)], U('earthT')), 0)
-    # sidewalk + kerb strip along the front, parking bays on the lot beside the entrance
+    # sidewalk + curb strip along the front, parking bays on the lot beside the entrance
     sc.add(poly(P, [P2(ex0, FY, 0), P2(ex1, FY, 0), P2(ex1, FY + .5, 0), P2(ex0, FY + .5, 0)], '#3b4d56'), 0)
     sc.add(path('M%s %s L%s %s' % (*P2(ex0, FY + .5, 0), *P2(ex1, FY + .5, 0)), '#9fb2ba', 1.3, op=.5), 0)
     sc.add(poly(P, [P2(6.0, -1.5, 0), P2(W + .9, -1.5, 0), P2(W + .9, -.15, 0), P2(6.0, -.15, 0)], '#1a262d', op=.5), 0)
@@ -341,7 +341,7 @@ def svg(mode='player', narrow=False, labels_for=None, ids=('bld-title', 'bld-des
     attrs_ = ('class="bld-svg bld" data-art data-vb-w="%d %d %d %d" data-vb-n="%d %d %d %d" ' % (VB['w'] + VB['n']) if mode == 'player' else '')
     o.append('<svg %sviewBox="%d %d %d %d" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="%s %s" focusable="false" preserveAspectRatio="xMidYMid meet">' % (
         attrs_, *(vb if mode == 'still' else VB['w']), *ids))
-    o.append('<title id="%s">Cutaway of a generic three-storey commercial building</title>' % ids[0])
+    o.append('<title id="%s">Cutaway of a generic three-story commercial building</title>' % ids[0])
     o.append('<desc id="%s">Layered 2.5D cutaway built in eight stages. OSP fiber enters from a street handhole, runs up a floor sleeve into the MDF rack, a riser climbs to an IDF stacked on each floor, a tray above the ceiling carries J-hooks to outlets, ceiling access points show an illustrative coverage ripple, cameras look inward from the entry, corridors and parking, and readers sit on the latch-side jamb.</desc>' % ids[1])
     o.append(defs())
     o.append(sc.render(mode))
