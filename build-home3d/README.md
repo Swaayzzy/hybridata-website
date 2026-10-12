@@ -1,3 +1,5 @@
+> **Retired (LIGHT-502).** The 3D view was removed from the site and its bundles are no longer served. This folder is kept as reference; the `licenses` scripts are disabled so they cannot overwrite `site/LICENSES.md`. Rebuilding would also write into `site/assets/3d/`, which no page loads.
+
 # build-home3d
 
 Dev-only tooling for the home page 3D bundle (`site/assets/3d/home-building.3d.js`). Nothing in this folder is served.

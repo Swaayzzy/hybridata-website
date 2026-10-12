@@ -6,11 +6,11 @@
   "type": "module",
   "scripts": {
     "assets": "python3 scripts/make-assets.py",
-    "licenses": "python3 scripts/licenses.py",
+    "licenses": "echo 'disabled: LICENSES.md is maintained by hand since LIGHT-502' && exit 1",
     "build": "node scripts/build.mjs",
     "assets:rack": "python3 scripts/make-assets-rack.py",
     "build:rack": "node scripts/build-rack.mjs",
-    "licenses:rack": "python3 scripts/licenses-rack.py"
+    "licenses:rack": "echo 'disabled: LICENSES.md is maintained by hand since LIGHT-502' && exit 1"
   },
   "dependencies": {
     "three": "0.185.1"

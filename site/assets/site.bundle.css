@@ -662,6 +662,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .nav-links a { font-size: 10px; }
   .nav-cta { padding-inline: 14px; }
 }
+/* Eight top-level links: keep each on one line and tighten the row until the phone menu takes over at 1020px. */
+@media (max-width: 1160px) and (min-width: 1021px) {
+  .nav-links { gap: 10px; }
+  .nav-links > a, .nav-service-trigger .nav-top-link { white-space: nowrap; }
+  .nav-cta { padding-inline: 10px; font-size: 10px; }
+}
 
 @media (max-width: 1020px) {
   .nav { min-height: 86px; }
