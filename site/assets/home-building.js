@@ -46,7 +46,7 @@
     if (toggle.view === '3d' && toggle.handle) { labels.show([]); toggle.handle.setState(stage, focus); window.__hybLabelCheck.home = toggle.handle.check; }
     else { labels.show(focus ? FOCUS_LABELS[focus] : LABELS[stage]); window.__hybLabelCheck.home = labels.check; }
     steps.forEach(function (st, i) { st.classList.toggle('is-active', i + 1 === stage); });
-    if (status) status.textContent = 'Stage ' + stage + ' of 8: ' + NAMES[stage - 1];
+    if (status) status.textContent = stage + '/8 · ' + NAMES[stage - 1];
     if (prev) prev.disabled = stage <= 1;
     if (next) next.disabled = stage >= 8;
   }
@@ -69,7 +69,8 @@
   // Active step = last step whose top has passed the reading line (just under the sticky stage on phones, mid-screen on desktop).
   var sticky = section.querySelector('.stage-sticky');
   function readLine() {
-    if (window.matchMedia('(max-width: 900px)').matches) return sticky.getBoundingClientRect().bottom + 24;
+    // On phones and tablets measure where the bottom of the stage will be once it is pinned, not where it is now (it may not be pinned yet).
+    if (window.matchMedia('(max-width: 900px)').matches) return (parseFloat(getComputedStyle(sticky).top) || 0) + sticky.offsetHeight + 24;
     return window.innerHeight * 0.5;
   }
   function setStickyVar() { section.style.setProperty('--sticky-h', Math.round(sticky.getBoundingClientRect().height) + 'px'); }

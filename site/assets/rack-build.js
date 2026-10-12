@@ -12,6 +12,7 @@
   var copyEl = section.querySelector('.rack-copy');
   var items = Array.prototype.slice.call(section.querySelectorAll('.stop-list li'));
   var rack = section.querySelector('.rack');
+  var readout = section.querySelector('.rack-readout');
 
   var STOPS = [
     { name: 'Empty rack', copy: 'A 4-post rack stands under the ladder rack, bonded to the grounding busbar.' },
@@ -52,7 +53,7 @@
     items.forEach(function (li, i) { li.classList.toggle('is-active', i + 1 === n); });
   }
 
-  function stopAuto() { if (timer) { clearTimeout(timer); timer = 0; } nameEl.parentNode.setAttribute('aria-live', 'polite'); }
+  function stopAuto() { if (timer) { clearTimeout(timer); timer = 0; } readout.setAttribute('aria-live', 'polite'); }
   function user() { ctrl = true; stopAuto(); }
   range.addEventListener('pointerdown', user);
   range.addEventListener('keydown', user);
@@ -60,7 +61,7 @@
 
   function autoBuild() {
     auto = true;
-    nameEl.parentNode.setAttribute('aria-live', 'off');
+    readout.setAttribute('aria-live', 'off');
     (function stepUp() {
       timer = 0;
       if (ctrl) return;

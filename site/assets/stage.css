@@ -31,11 +31,12 @@ html:has(.hyb-stage) { scroll-behavior: auto; }
 .stage-badge { position: absolute; left: 10px; bottom: 10px; z-index: 1; padding: 3px 8px; font-size: 12px; color: #dff5ff; background: rgba(4, 12, 16, .78); border: 1px solid var(--line-strong); }
 
 /* View toggle: Simple view <-> 3D view */
-.view-toggle { display: inline-flex; margin: 0 0 12px; border: 1px solid var(--line-strong); }
+.view-row { display: flex; align-items: center; gap: 12px; min-width: 0; margin: 0 0 12px; }
+.view-toggle { display: inline-flex; flex: 0 0 auto; border: 1px solid var(--line-strong); }
 .view-toggle button { min-height: 44px; min-width: 44px; padding: 0 16px; color: var(--paper); background: transparent; border: 0; font-weight: 600; cursor: pointer; }
 .view-toggle button[aria-pressed="true"] { color: var(--ink); background: var(--cyan-light); }
 .view-toggle button[aria-disabled="true"] { color: #8fa1a9; cursor: not-allowed; }
-.view-note { margin: 0 0 12px 12px; font-size: 13px; color: #a5b5bd; display: inline-block; vertical-align: middle; }
+.view-note { flex: 1 1 0; min-width: 0; margin: 0; font-size: 13px; color: #a5b5bd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Stage nav */
 .stage-nav { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
@@ -134,7 +135,7 @@ html.hyb-reduce .hyb-stage svg .flow, html.hyb-reduce .hyb-stage svg .bloom, htm
   .picker-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .picker-out { padding: 12px; }
   .picker-out p { margin-bottom: 10px; }
-  .view-toggle { margin-bottom: 6px; }
+  .view-row { margin-bottom: 6px; }
   .stage-nav { margin-top: 6px; gap: 8px; }
   .picker-out { min-height: 0; }
   .stage-label { font-size: 12px; }
@@ -150,7 +151,7 @@ html.hyb-reduce .hyb-stage svg .flow, html.hyb-reduce .hyb-stage svg .bloom, htm
 @media (min-width: 901px) {
   .picker-row { flex-wrap: wrap; overflow: visible; }
 }
-.stage-nav .stage-status { min-width: 0; }
+.stage-nav .stage-status { min-width: 0; height: 22px; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Status on its own full-width line above Prev/Next */
 .stage-nav { flex-wrap: wrap; }
