@@ -122,8 +122,9 @@ html.hyb-reduce .hyb-stage svg .flow, html.hyb-reduce .hyb-stage svg .bloom, htm
 /* Tablet and phone: sticky stage on top, story or copy scrolls underneath */
 @media (max-width: 900px) {
   .stage-layout { display: block; }
-  /* Keep the stage pinned until the story and picker have fully scrolled past, so it never slides under the site header with copy still on screen. */
-  .home-stage .stage-layout::after { content: ''; display: block; height: calc(var(--hdr) + var(--sticky-h, 55svh)); }
+  /* Short band after the picker; the stage is hidden (is-leaving) the moment it is released, so it never slides under the site header. */
+  .home-stage .stage-layout::after { content: ''; display: block; height: 120px; }
+  .home-stage.is-leaving .stage-sticky { visibility: hidden; opacity: 0; transition: opacity .2s ease, visibility .2s ease; }
   .stage-sticky { top: var(--hdr); padding-top: 4px; background: var(--panel); }
   .home-stage .stage-frame { aspect-ratio: auto; height: 42svh; max-height: 520px; min-height: 260px; }
   .rack-stage .stage-frame.is-rack { aspect-ratio: auto; height: 46svh; max-height: 520px; min-height: 260px; max-width: none; }

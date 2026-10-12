@@ -83,10 +83,19 @@
     return n;
   }
   var ticking = false;
+  // Phones and tablets: once the story and picker are past, the pinned stage is released. Hide it from that moment
+  // so it never slides under the site header with copy still on screen.
+  var layout = section.querySelector('.stage-layout');
+  var mqPhone = window.matchMedia('(max-width: 900px)');
+  function updateLeaving() {
+    var leaving = false;
+    if (mqPhone.matches && layout) leaving = layout.getBoundingClientRect().bottom < (parseFloat(getComputedStyle(sticky).top) || 0) + sticky.offsetHeight + 1;
+    section.classList.toggle('is-leaving', leaving);
+  }
   function onScroll() {
     if (ticking) return;
     ticking = true;
-    requestAnimationFrame(function () { ticking = false; setStage(activeFromScroll()); });
+    requestAnimationFrame(function () { ticking = false; setStage(activeFromScroll()); updateLeaving(); });
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
@@ -117,15 +126,30 @@
   section.classList.add('is-ready');
   stage = activeFromScroll();
   render();
-  // Capable devices get the 3D view by default, fetched only when the section nears the screen.
-  // ?eager=1 (testing only, used by the QA gate) mounts at once instead of waiting for the section to near the screen.
+  // Capable devices get the 3D view by default. It starts only when ALL of these hold: the page has loaded, the browser has been
+  // idle (2 s timeout fallback), and the section is within 100 px of the screen or the visitor has scrolled or touched the page.
+  // The 2D cutaway stays in place until the 3D canvas is attached (same frame size, no layout shift).
+  // ?eager=1 (testing only, used by the QA gate) mounts at once.
   if (!S.force2DReason() && /[?&]eager=1\b/.test(location.search)) {
     toggle.set('3d');
   } else if (!S.force2DReason() && 'IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (es) {
-      if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); toggle.set('3d'); }
-    }, { rootMargin: '400px 0px' });
+    var idle = false, near = false, touched = false, started = false;
+    var io = new IntersectionObserver(function (es) { near = es.some(function (e) { return e.isIntersecting; }); go(); }, { rootMargin: '100px 0px' });
+    var kinds = ['scroll', 'touchstart', 'wheel', 'keydown'];
+    var onInput = function () { touched = true; go(); };
+    var go = function () {
+      if (started || !idle || !(near || touched)) return;
+      started = true; io.disconnect();
+      kinds.forEach(function (k) { window.removeEventListener(k, onInput); });
+      toggle.set('3d');
+    };
+    kinds.forEach(function (k) { window.addEventListener(k, onInput, { passive: true }); });
     io.observe(section);
+    var afterLoad = function () {
+      if (window.requestIdleCallback) window.requestIdleCallback(function () { idle = true; go(); }, { timeout: 2000 });
+      else setTimeout(function () { idle = true; go(); }, 2000);
+    };
+    if (document.readyState === 'complete') afterLoad(); else window.addEventListener('load', afterLoad, { once: true });
   }
   window.__hybHome = { setStage: setStage, get stage() { return stage; }, view: function () { return toggle.view; } };
 })();

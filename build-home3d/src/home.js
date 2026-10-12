@@ -3,7 +3,7 @@
    Render on demand: frames are drawn only while the scene is moving and the section is on screen. */
 import {
   WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, MeshStandardMaterial, MeshBasicMaterial, DirectionalLight,
-  TextureLoader, SRGBColorSpace, RepeatWrapping, EquirectangularReflectionMapping, PMREMGenerator, ACESFilmicToneMapping,
+  TextureLoader, ImageBitmapLoader, Texture, SRGBColorSpace, RepeatWrapping, EquirectangularReflectionMapping, PMREMGenerator, ACESFilmicToneMapping,
   Color, Vector3, Matrix4, Quaternion, CanvasTexture, LinearFilter, LinearMipmapLinearFilter, AdditiveBlending, DoubleSide,
   CylinderGeometry, SphereGeometry, TorusGeometry, ConeGeometry, LatheGeometry, Vector2, PCFShadowMap, PlaneGeometry,
   CircleGeometry, InstancedMesh, BoxGeometry
@@ -51,7 +51,8 @@ const FOCUS_LABELS = {
   access: [L('Readers on door frames', 1, 3.03, 1.2, 1.65), L('Panel in the IDF', 1, -11.8, 1.4, -1.2)]
 };
 
-const yieldMain = () => new Promise((r) => setTimeout(r, 0));
+// Yield to the browser between build chunks: scheduler.yield() where it exists, else a 0 ms timeout.
+const yieldMain = () => (self.scheduler && self.scheduler.yield ? self.scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
 
 export async function mount(el, options) {
   options = options || {};
@@ -86,6 +87,8 @@ export async function mount(el, options) {
   let pending = 0, onAllLoaded = null, loadedErr = 0;
 
   /* ---------- textures and materials ---------- */
+  // Maps are fetched (same origin, connect-src 'self') and decoded off the main thread with createImageBitmap; no blob: URL.
+  const bmLoader = typeof createImageBitmap === 'function' ? new ImageBitmapLoader().setOptions({ imageOrientation: 'flipY' }) : null;
   const loader = new TextureLoader();
   const texCache = {};
   function done() { pending--; invalidate(); if (pending === 0 && onAllLoaded) onAllLoaded(); }
@@ -93,7 +96,14 @@ export async function mount(el, options) {
     const key = set + kind + tile;
     if (texCache[key]) return texCache[key];
     pending++;
-    const t = loader.load(BASE + 'tex' + tier + '/' + set + '_' + kind + '.webp', done, undefined, () => { loadedErr++; done(); });
+    const url = BASE + 'tex' + tier + '/' + set + '_' + kind + '.webp';
+    let t;
+    if (bmLoader) {
+      t = new Texture();
+      bmLoader.load(url, (bm) => { t.image = bm; t.needsUpdate = true; done(); }, undefined, () => { loadedErr++; done(); });
+    } else {
+      t = loader.load(url, done, undefined, () => { loadedErr++; done(); });
+    }
     t.wrapS = t.wrapT = RepeatWrapping;
     if (kind === 'Color') t.colorSpace = SRGBColorSpace;
     t.anisotropy = phone ? 2 : 6;
@@ -250,6 +260,7 @@ export async function mount(el, options) {
   layer(M.paving, -18, 12.5, -12, 6.0, -slabT, 0, holes, 2.5);          // yard around the building
   gp.box(M.paving, 48, 0.22, 0.25, 6, 0.11, 9.0, 2.5);                  // kerb
   const gm = gp.build({ receive: true }); ground.add(gm);
+  await yieldMain();
   // Street markings and parking bays (instanced stripes)
   const stripeM = [];
   for (let i = 0; i < 7; i++) stripeM.push(mat(14.4 + i * 2.6, 0.012, 3.2, 0, 0, 0));
@@ -258,6 +269,7 @@ export async function mount(el, options) {
   for (let i = 0; i < 16; i++) dashM.push(mat(-16 + i * 3, 0.012, 14.6, 0, Math.PI / 2, 0, 1, 1, 0.42));
   ground.add(instanced(G_.stripe, M.paint, dashM));
 
+  await yieldMain();
   // OSP: orange innerduct with a lit fiber inside, handhole at the kerb
   const ospP = new Part(), ospFiber = new Part();
   const path = [V(-18, -0.8, 10.8), V(-10.9, -0.8, 10.8), V(-10.9, -0.8, 6.4)];
@@ -272,6 +284,7 @@ export async function mount(el, options) {
   ospFiber.tube(G.fiber.cable, inP.slice(0, 3), 0.045, 14, 8, 0.5);
   const ospGroup = new Group();
   ospGroup.add(ospP.build({ receive: true }), ospFiber.build({ receive: false }));
+  await yieldMain();
   // handhole: concrete box in the sidewalk with lid and a ring, cable slack inside
   const hh = new Part();
   hh.box(M.concrete, 0.95, 0.1, 0.7, -10.9, 0.04, 9.3, 1.2, 0);
@@ -301,6 +314,7 @@ export async function mount(el, options) {
   })();
   world.add(reg(beads, 'fiber', 1));
 
+  await yieldMain();
   // Parking camera pole (surveillance, looks back at the building)
   const pole = new Group(); world.add(reg(pole, 'surveillance', 6));
   (function () {
@@ -456,12 +470,14 @@ export async function mount(el, options) {
     doorXs.forEach((dx) => { addDoor(shell, dx, 1.56, 0, f, rd); addDoor(shell, dx, -1.56, Math.PI, f, rd); });
     addDoor(shell, -6, 0, -Math.PI / 2, f, rd);
     if (f === 0) { const m = new Matrix4().compose(V(1.72, 1.2, HZ + 0.1), new Quaternion(), V(1, 1, 1)); rd.push(m); }
+    await yieldMain();
     const shellG = shell.build({ cast: true, castOnly: B.concrete });
     shellG.userData.shell = true;
     g.add(shellG);
     const glass = glassM.build({ receive: false });
     glass.children.forEach((m) => { m.renderOrder = 4; m.userData.glass = true; });
     g.add(glass);
+    await yieldMain();
     // ceiling grid plane (not over the MDF)
     const cg = new PlaneGeometry(HX - 6 - 0.2, 2 * HZ - 0.4);
     cg.rotateX(Math.PI / 2);
@@ -470,6 +486,7 @@ export async function mount(el, options) {
     cm.position.set((HX + 6) / 2, CEIL, 0); cm.renderOrder = 3; cm.userData.ceiling = true;
     g.add(cm);
 
+    await yieldMain();
     /* --- cabling: rack + runway (MDF stage 2, IDF stage 3), then tray, J-hooks, outlets (stage 4) --- */
     const isMDF = f === 0;
     const cab = new Part(), leds = [], cords = [];
@@ -480,6 +497,7 @@ export async function mount(el, options) {
       part.between(M.galv, V(a.x, a.y, a.z - 0.2), V(b.x, b.y, b.z - 0.2), 0.016, 8);
       part.between(M.galv, V(a.x, a.y, a.z + 0.2), V(b.x, b.y, b.z + 0.2), 0.016, 8);
     }
+    await yieldMain();
     // ladder runway over the rack, bends up to the corridor tray
     ladder(cab, V(-9.35, 2.35, 0), V(-8.2, 2.35, 0)); ladder(cab, V(-8.2, 2.35, 0), V(-6.4, TRAY_Y, 0));
     const rung = () => new BoxGeometry(0.03, 0.025, 0.4);
@@ -503,6 +521,7 @@ export async function mount(el, options) {
     for (let i = 0; i < 5; i++) cab.add(M.rubber, G_.wrap.clone(), mat(-8.62, 0.4 + i * 0.35, 0.28, 0, 0, 0, 0.7, 1, 0.7));
     g.add(reg(rackGroup, 'cabling', isMDF ? 2 : 3));
 
+    await yieldMain();
     // corridor tray: two rails, instanced rungs, cables on top, hanger rods
     ladder(tray, V(-6.4, TRAY_Y, 0), V(HX - 1.2, TRAY_Y, 0));
     for (let x = -6.2; x < HX - 1.2; x += 0.3) tray.add(M.galv, rung(), mat(x, TRAY_Y, 0));
@@ -510,6 +529,7 @@ export async function mount(el, options) {
     [-0.12, -0.04, 0.04, 0.12].forEach((zo, i) => tray.between(i % 2 ? G.cabling.cable : M.jacketBlue, V(-6.4, cabY, zo), V(HX - 1.2, cabY, zo), 0.013, 8));
     const addWrap = (m) => tray.add(M.rubber, G_.wrap.clone(), m);
     for (let x = -6.0; x < HX - 1.4; x += 1.1) addWrap(mat(x, cabY, 0, 0, 0, Math.PI / 2, 1, 1, 1));
+    await yieldMain();
     // branches: J-hooks every metre along each run, down a service pole to an outlet plate in each room
     const jh = [];
     doorXs.forEach((bx) => {
@@ -534,6 +554,7 @@ export async function mount(el, options) {
     trayGroup.add(instanced(G_.jhook, M.galv, jh));
     g.add(reg(trayGroup, 'cabling', 4));
 
+    await yieldMain();
     // riser: backbone stubs (fiber + copper) from the rack to the sleeve, and the firestopped sleeve through this slab
     const fStub = new Part(), cStub = new Part();
     fStub.tube(G.fiber.cable, [V(-9.1, 2.28, 0.0), V(-9.6, 2.42, -0.8), V(sleeveXZ[0], 2.4, sleeveXZ[1] + 0.9), V(sleeveXZ[0] - 0.03, 2.3, sleeveXZ[1])], 0.021, 20, 8, 0.5);
@@ -546,6 +567,7 @@ export async function mount(el, options) {
     }
     g.add(reg(cStub.build(), 'cabling', 3));
 
+    await yieldMain();
     /* --- fiber enclosure at the MDF --- */
     if (isMDF) {
       const fe = new Part();
@@ -558,6 +580,7 @@ export async function mount(el, options) {
       g.add(reg(fe.build(), 'fiber', 2));
     }
 
+    await yieldMain();
     /* --- wireless: ceiling APs (flush in the tile grid, not on the tray) --- */
     const apM = apPos.map((a) => mat(a[0], CEIL - 0.0, a[1]));
     const apGroup = new Group();
@@ -573,6 +596,7 @@ export async function mount(el, options) {
       g.add(reg(covG, 'wireless', 5));
     }
 
+    await yieldMain();
     /* --- surveillance: domes merged per floor, view cones instanced --- */
     const cams = new Group(), domeP = new Part(), coneM = [];
     function dome(x, y, z, dir) {
@@ -588,6 +612,7 @@ export async function mount(el, options) {
     cones.userData.field = 'surveillance'; cones.renderOrder = 6; cams.add(cones);
     g.add(reg(cams, 'surveillance', 6));
 
+    await yieldMain();
     /* --- access control: readers on the latch-side jamb, door glow, panel, dashed cable runs --- */
     const acc = new Group();
     acc.add(instanced(G_.reader, M.plasticDark, rd.map((m) => m.clone().multiply(mat(0, 0, 0, 0, 0, 0, 2.2, 2.2, 2.2)))));
@@ -788,12 +813,30 @@ export async function mount(el, options) {
       frameStep(0.016);
       items.forEach((it) => { it.obj.visible = true; });
       scene.traverse((o) => { if (o.userData && o.userData.field) o.visible = true; });
-      const compile = renderer.extensions.has('KHR_parallel_shader_compile') ? () => renderer.compileAsync(scene, camera) : () => { renderer.compile(scene, camera); return Promise.resolve(); };
+      // 1) upload each map in its own task, 2) link one representative mesh per distinct program in its own task,
+      // 3) draw each top-level group once (uploads its buffers). Nothing here is longer than one GL call.
+      for (const t of Object.keys(texCache)) { try { renderer.initTexture(texCache[t]); } catch (e) { /* uploaded on first draw instead */ } await yieldMain(); }
+      const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
       const kids = world.children.slice();
+      const seen = new Set(), reps = [];
+      scene.traverse((o) => {
+        if (!o.isMesh) return;
+        const key = o.material.uuid + (o.isInstancedMesh ? 'i' : 'm') + (o.geometry.attributes.color ? 'c' : '') + (o.geometry.attributes.uv ? 'u' : '');
+        if (!seen.has(key)) { seen.add(key); reps.push(o); }
+      });
+      const all = []; scene.traverse((o) => { if (o.isMesh) all.push([o, o.visible]); });
+      for (const rep of reps) {
+        all.forEach((p) => { p[0].visible = p[0] === rep; });
+        const chain = []; for (let o = rep.parent; o; o = o.parent) { chain.push([o, o.visible]); o.visible = true; }
+        try { if (parallel) await renderer.compileAsync(scene, camera); else renderer.compile(scene, camera); } catch (e) { /* first draw compiles instead */ }
+        chain.forEach((c) => { c[0].visible = c[1]; });
+        await yieldMain();
+      }
+      all.forEach((p) => { p[0].visible = p[1]; });
       for (const k of kids) {
         const hidden = kids.filter((o) => o !== k && o.visible);
         hidden.forEach((o) => { o.visible = false; });
-        try { await compile(); } catch (e) { /* first render compiles instead */ }
+        renderer.render(scene, camera);
         hidden.forEach((o) => { o.visible = true; });
         await yieldMain();
       }

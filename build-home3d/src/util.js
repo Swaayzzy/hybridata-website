@@ -30,14 +30,12 @@ export function mat(x, y, z, rx, ry, rz, sx, sy, sz) {
 export function boxGeo(w, h, d, tile) {
   const g = new BoxGeometry(w, h, d);
   if (tile) {
-    const uv = g.attributes.uv;
-    // BoxGeometry faces (4 verts each): +x, -x, +y, -y, +z, -z
+    const uv = g.attributes.uv.array;
+    // BoxGeometry faces (4 verts each): +x, -x, +y, -y, +z, -z; typed-array loop (no per-vertex accessor calls)
     const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
     for (let f = 0; f < 6; f++) {
-      for (let i = 0; i < 4; i++) {
-        const k = f * 4 + i;
-        uv.setXY(k, uv.getX(k) * dims[f][0] / tile, uv.getY(k) * dims[f][1] / tile);
-      }
+      const su = dims[f][0] / tile, sv = dims[f][1] / tile;
+      for (let i = 0; i < 4; i++) { const k = (f * 4 + i) * 2; uv[k] *= su; uv[k + 1] *= sv; }
     }
   }
   return g;
