@@ -101,11 +101,16 @@
 
   // 3D view: load the bundle when the section nears the screen (the 2D rack shows until it is ready).
   // ?eager=1 (testing only, used by the QA gate) mounts at once.
+  // It starts after the page has loaded and the browser is idle, so it never competes with the first paint.
+  function whenIdle(fn) {
+    function go() { if (window.requestIdleCallback) window.requestIdleCallback(fn, { timeout: 1500 }); else setTimeout(fn, 250); }
+    if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true });
+  }
   if (!S.force2DReason() && /[?&]eager=1\b/.test(location.search)) {
     toggle.set('3d');
   } else if (!S.force2DReason() && 'IntersectionObserver' in window) {
     var io3 = new IntersectionObserver(function (es) {
-      if (es.some(function (e) { return e.isIntersecting; })) { io3.disconnect(); toggle.set('3d'); }
+      if (es.some(function (e) { return e.isIntersecting; })) { io3.disconnect(); whenIdle(function () { toggle.set('3d'); }); }
     }, { rootMargin: '400px 0px' });
     io3.observe(section);
   }

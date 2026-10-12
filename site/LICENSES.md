@@ -110,7 +110,7 @@ Made by `build-home3d/scripts/make-assets-rack.py`: maps resized to 256 px (phon
 
 | File | Bytes | SHA-256 |
 | --- | --- | --- |
-| `assets/3d/rack.3d.js` | 580188 | `1f34100b95506a80d46216bba3baf29a3ab6e9c6c4ccc7504678378e49655845` |
+| `assets/3d/rack.3d.js` | 580514 | `6ff62bd9d10f5a03bd0660c0c9e681d8be31c2ad51c09f5871d9d75b07526ab4` |
 
 Rebuild: `cd build-home3d && npm ci && python3 scripts/make-assets-rack.py && node scripts/build-rack.mjs`, then `python3 scripts/licenses-rack.py`. Same pinned, lockfile-verified esbuild 0.28.2 (dev only) as the home section.
 

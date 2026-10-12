@@ -59,6 +59,7 @@ export async function mount(el, options) {
   sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
   scene.add(sun, sun.target, new HemisphereLight(0xdfeaf2, 0x232a30, 0.9));
 
+  const tStart = performance.now();
   let running = false, onscreen = true, lastT = 0, frames = 0, destroyed = false, sized = false;
   let pending = 0, onAllLoaded = null, loadedErr = 0;
   const snap = !!options.reduceMotion;
@@ -552,11 +553,13 @@ export async function mount(el, options) {
     window.__hybLabelCheck.rack = labels.check;
   }
   apply(st.p);
+  const sceneMs = Math.round(performance.now() - tStart);   // synchronous scene construction
 
   let finished = false;
   return new Promise((resolve) => {
     const finish = async () => {
       if (finished) return; finished = true;
+      const buildMs = Math.round(performance.now() - tStart);
       // Warm every shader once at the fully built state, then step back, so no stop change hitches later.
       const saved = st.p; apply(6);
       const compile = renderer.extensions.has('KHR_parallel_shader_compile') ? () => renderer.compileAsync(scene, camera) : () => { renderer.compile(scene, camera); return Promise.resolve(); };
@@ -571,6 +574,7 @@ export async function mount(el, options) {
       st.p = saved; apply(st.p);
       el.appendChild(canvas);
       fit(); renderer.render(scene, camera);
+      window.__hybRack3d.sceneMs = sceneMs; window.__hybRack3d.buildMs = buildMs; window.__hybRack3d.mountMs = Math.round(performance.now() - tStart);
       resolve({
         setState, check: labels.check,
         hideLabels: () => labels.show([]),
