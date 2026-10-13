@@ -1,5 +1,5 @@
 /* How We Build page and the two teasers. External stylesheet only: the site CSP is style-src 'self', so no inline styles in HTML or SVG.
-   Animations use transform, opacity and stroke-dashoffset only. */
+   Steps are still frames; the only motion is a short opacity crossfade (200 ms or less), removed with reduced motion. */
 .hyb-stage { --fiber: #53c3df; --cabling: #e0a85a; --wireless: #7fe3a0; --surveillance: #c79bff; --access: #ff9a6b; }
 .hwb { padding-block: 28px 56px; }
 .hwb-title { margin: 0 0 18px; font-size: clamp(34px, 5vw, 56px); line-height: 1; }
@@ -14,12 +14,11 @@
 
 /* Player */
 .hwb-player { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 32px; align-items: start; }
-.stage-frame { position: relative; width: 100%; height: clamp(300px, calc(100svh - 150px), 620px); background: radial-gradient(120% 90% at 50% 0%, #15232b 0%, #0a1116 70%); border: 1px solid var(--line-strong); overflow: hidden; cursor: pointer; }
+.stage-frame { position: relative; width: 100%; height: clamp(300px, calc(100svh - 150px), 620px); background: radial-gradient(120% 90% at 50% 0%, #15232b 0%, #0a1116 70%); border: 1px solid var(--line-strong); overflow: hidden; }
 .stage-frame.is-rack { max-width: 520px; margin-inline: auto; }
 .stage-frame svg.bld-svg, .stage-frame svg.rack-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hwb-side { min-width: 0; }
 .hwb-readout { min-height: 190px; }
-.hwb-num { min-height: 1.3em; margin: 0; font-family: var(--display); font-size: 18px; letter-spacing: .08em; color: var(--cyan); text-transform: uppercase; }
 .hwb-name { min-height: 1.05em; margin: 2px 0 8px; font-family: var(--display); font-size: 32px; line-height: 1.05; text-transform: uppercase; }
 .hwb-caption p { margin: 0; color: #dbe8ec; font-size: 16px; }
 .hwb-caption .note { margin-top: 6px; font-size: 14px; color: #a5b5bd; }
@@ -31,21 +30,18 @@
 .hwb:not(.is-ready) .hwb-tags { display: none; }
 .picker-panel .hwb-tags { display: none; }
 
-/* Controls */
-.hwb-controls { margin-top: 14px; }
-.hwb-progress { height: 8px; background: var(--line-strong); overflow: hidden; }
-.hwb-progress-fill { height: 100%; background: var(--cyan-light); transform-origin: left center; transform: scaleX(0); }
-.hwb-btns { display: flex; gap: 8px; margin-top: 10px; }
-.hwb-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 44px; min-height: 44px; padding: 0 14px; color: var(--paper); background: var(--panel-raised); border: 1px solid var(--line-strong); font: 600 15px/1 var(--body); cursor: pointer; }
-.hwb-play { flex: 1 1 0; color: var(--ink); background: var(--cyan-light); border-color: var(--cyan-light); }
-.hwb-replay { flex: 1 1 0; }
-.hwb-btn:disabled { opacity: .4; cursor: default; }
-.hwb-btn:focus-visible, .hwb-dot:focus-visible, .picker-row button:focus-visible, .stage-frame:focus-visible { outline: 3px solid var(--cyan-light); outline-offset: 2px; }
-.hwb-dots { display: flex; flex-wrap: wrap; margin-top: 4px; }
-.hwb-dot { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; background: transparent; border: 0; cursor: pointer; color: #dff5ff; }
-.hwb-dot-i { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; font-size: 13px; font-weight: 700; border-radius: 50%; border: 2px solid var(--line-strong); background: var(--panel-raised); }
-.hwb-dot.is-done .hwb-dot-i { border-color: var(--cyan); }
-.hwb-dot[aria-current="step"] .hwb-dot-i { color: var(--ink); background: var(--cyan-light); border-color: var(--cyan-light); }
+/* Step arrows: large buttons on both sides of the picture, 48 px minimum */
+.hwb-stagewrap { display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; gap: 10px; align-items: center; min-width: 0; }
+.hwb-stagewrap .stage-frame { grid-column: 2; grid-row: 1; touch-action: pan-y; cursor: default; }
+.hwb-prev { grid-column: 1; grid-row: 1; }
+.hwb-next { grid-column: 3; grid-row: 1; }
+.hwb-arrow { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; padding: 0; color: var(--ink); background: var(--cyan-light); border: 2px solid var(--cyan-light); border-radius: 50%; cursor: pointer; }
+.hwb-arrow:hover:not(:disabled) { background: var(--paper); border-color: var(--paper); }
+.hwb-arrow:disabled { color: var(--paper); background: var(--panel-raised); border-color: var(--line-strong); opacity: .45; cursor: default; }
+.hwb-arrow:focus-visible, .picker-row button:focus-visible, .stage-frame:focus-visible { outline: 3px solid var(--paper); outline-offset: 3px; }
+.hwb:not(.is-ready) .hwb-arrow { display: none; }
+.hwb:not(.is-ready) .hwb-stagewrap { display: block; }
+.hwb-count { min-height: 1.3em; margin: 0; font-family: var(--display); font-size: 18px; letter-spacing: .08em; color: var(--cyan); }
 
 /* Above the player: intro. Below it: picker, CTAs */
 .hwb-more { grid-column: 1 / -1; }
@@ -56,23 +52,19 @@
 .picker-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .picker-row button { min-height: 48px; padding: 0 16px; color: var(--paper); background: var(--panel-raised); border: 1px solid var(--line-strong); border-radius: 0; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .picker-row button[aria-pressed="true"] { color: var(--ink); background: var(--cyan-light); border-color: var(--cyan-light); }
-.picker-out { margin-top: 12px; padding: 16px; background: var(--panel-raised); border: 1px solid var(--line); min-height: 110px; }
+.picker-out[hidden] { display: none; }
+.picker-out { margin-top: 12px; padding: 16px; background: var(--panel-raised); border: 1px solid var(--line); }
 .picker-out p { margin: 0 0 14px; color: #dbe8ec; }
-.picker-out .picker-hint { color: #a5b5bd; margin: 0; }
 .picker-out .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; }
 .picker-h { margin: 0 0 10px; font-size: 18px; }
 
 /* Art layers (LIGHT-503). scripts/hwb/ emits .L[data-from][data-system] groups; the player adds .on for every layer whose
-   step has been reached. Only transform, opacity and stroke-dashoffset are animated. */
-.hyb-stage svg .L { opacity: 0; transition: opacity .5s ease, transform .6s ease; }
+   step has been reached.  The only transition is a short opacity crossfade. */
+.hyb-stage svg .L { opacity: 0; transition: opacity .18s ease; }
 .hyb-stage svg .L.on { opacity: 1; }
 /* cable runs draw along their path (pathLength=1), and un-draw when you jump back */
-.hyb-stage svg .draw { stroke-dasharray: 1; stroke-dashoffset: 1; stroke-linecap: butt; transition: stroke-dashoffset .9s ease-in-out; }
+.hyb-stage svg .draw { stroke-dasharray: 1; stroke-dashoffset: 1; stroke-linecap: butt;  }
 .hyb-stage svg .L.on .draw { stroke-dashoffset: 0; }
-.hyb-stage svg .L.on .dl1 { transition-delay: .15s; }
-.hyb-stage svg .L.on .dl2 { transition-delay: .35s; }
-.hyb-stage svg .L.on .dl3 { transition-delay: .55s; }
-/* things that arrive with a small move */
 .hyb-stage svg .L.up:not(.on) { transform: translateY(-34px); }
 .hyb-stage svg .L.peel:not(.on) { transform: translateY(-18px); }
 .hyb-stage svg .L.vml:not(.on) { transform: translateX(-28px); }
@@ -82,17 +74,11 @@
 .hyb-stage svg .L.pop:not(.on) { transform: scale(.55); }
 .hyb-stage svg .L.wrap { transform-box: fill-box; transform-origin: left center; }
 .hyb-stage svg .L.wrap:not(.on) { transform: scaleX(0); }
-.hyb-stage svg .L.on.u2, .hyb-stage svg .L.on.dw2, .hyb-stage svg .L.on.fade2 { transition-delay: .15s; }
-.hyb-stage svg .L.on.u3, .hyb-stage svg .L.on.dw3, .hyb-stage svg .L.on.fade3 { transition-delay: .3s; }
-.hyb-stage svg .L.on.u4, .hyb-stage svg .L.on.dw4 { transition-delay: .45s; }
-.hyb-stage svg .L.on.u5, .hyb-stage svg .L.on.dw5 { transition-delay: .6s; }
-.hyb-stage svg .L.on.u6 { transition-delay: .75s; }
-/* coverage ripple grows out from under its AP */
-.hyb-stage svg .rip { transform-box: fill-box; transform-origin: center; transition: transform .9s ease-out; }
+.hyb-stage svg .rip { transform-box: fill-box; transform-origin: center; }
 .hyb-stage svg .L:not(.on) .rip { transform: scale(.35); }
 /* building: closed facade and roof at stage 1, then they lift away */
-.hyb-stage svg .facade { transition: opacity .6s ease; }
-.hyb-stage svg .roof { transition: transform .7s ease, opacity .7s ease; }
+.hyb-stage svg .facade { transition: opacity .18s ease; }
+.hyb-stage svg .roof { transition: opacity .18s ease; }
 .bld:not([data-stage="1"]) .facade { opacity: 0; }
 .bld:not([data-stage="1"]) .roof { transform: translateY(-34px); opacity: .22; }
 /* service picker: the chosen system stays bright, the building shell dims, the rest nearly vanishes */
@@ -100,7 +86,7 @@
 .bld[data-focus] .L[data-system=""]:not(.is-focus) { opacity: .38; }
 .bld[data-focus] .facade { opacity: 0; }
 /* callouts: only the current step's labels (or the picked system's) show; the phone set is bigger type, fewer words */
-.hyb-stage svg .lbl, .hyb-stage svg .tg { opacity: 0; transition: opacity .35s ease; }
+.hyb-stage svg .lbl, .hyb-stage svg .tg { opacity: 0; transition: opacity .18s ease; }
 .hyb-stage svg .lbl-n, .hyb-stage svg .tg-n { display: none; }
 @media (max-width: 680px) { .hyb-stage svg .lbl-w, .hyb-stage svg .tg-w { display: none; } .hyb-stage svg .lbl-n, .hyb-stage svg .tg-n { display: inline; } }
 .bld[data-stage="1"]:not([data-focus]) .lbl.s1, .bld[data-stage="2"]:not([data-focus]) .lbl.s2, .bld[data-stage="3"]:not([data-focus]) .lbl.s3,
@@ -113,24 +99,9 @@
 /* "(illustrative)" printed on the coverage ripple (home, from stage 5) and on the test trace (rack, step 6) */
 .bld[data-stage="5"]:not([data-focus]) .tg, .bld[data-stage="6"]:not([data-focus]) .tg, .bld[data-stage="7"]:not([data-focus]) .tg,
 .bld[data-stage="8"]:not([data-focus]) .tg, .bld[data-focus="wireless"] .tg, .rack[data-stage="6"] .tg { opacity: 1; }
-/* loops: only while a layer is on, and only while the player runs */
-.hyb-stage svg .L.on .rip2 { animation: hybring 3.2s ease-in-out infinite; }
-.hyb-stage svg .L.on .led { animation: hybblink 1.4s steps(2, jump-none) infinite; }
-.hyb-stage svg .L.on .cone { animation: hybcone 3.6s ease-in-out infinite; }
-.hyb-stage svg .L.on .reader { animation: hybflash 1.6s ease-in-out infinite; }
-.hyb-stage svg .L.on.flash { animation: hybflash 1.4s ease-in-out infinite; }
-/* Nothing animates unless the player is running: off screen, hidden tab, paused by the visitor. */
-.hwb-panel.is-paused svg * { animation-play-state: paused; }
-@keyframes hybring { 0%, 100% { opacity: .35; } 50% { opacity: .85; } }
-@keyframes hybblink { 50% { opacity: .3; } }
-@keyframes hybcone { 0%, 100% { opacity: .2; } 50% { opacity: .34; } }
-@keyframes hybflash { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-.hyb-stage svg .px { will-change: auto; }
-
-/* Reduced motion: same art, static. No transitions, no loops, no parallax. */
+/* Reduced motion: the swap is instant. */
 @media (prefers-reduced-motion: reduce) {
-  .hyb-stage svg .L, .hyb-stage svg .draw, .hyb-stage svg .rip, .hyb-stage svg .roof, .hyb-stage svg .facade, .hyb-stage svg .lbl, .hyb-stage svg .tg { transition: none !important; }
-  .hyb-stage svg * { animation: none !important; }
+  .hyb-stage svg .L, .hyb-stage svg .roof, .hyb-stage svg .facade, .hyb-stage svg .lbl, .hyb-stage svg .tg { transition: none !important; }
 }
 
 /* Before JS runs (or without it) show every layer so the drawing is never blank. */
@@ -141,7 +112,7 @@
 .hwb:not(.is-ready) svg .bld .roof, .hwb:not(.is-ready) svg .roof { opacity: .22; transform: translateY(-34px); }
 .hwb:not(.is-ready) .bld .lbl.s8, .hwb:not(.is-ready) .rack .lbl.s6, .hwb:not(.is-ready) svg .tg { opacity: 1; }
 
-/* Tablet and phone: art, caption and controls stack on one screen */
+/* Tablet and phone: art, caption and arrows stack on one screen */
 @media (max-width: 900px) {
   .hwb { padding-block: 16px 40px; }
   .hwb-title { margin-bottom: 10px; font-size: 32px; }
@@ -151,14 +122,12 @@
   .stage-frame.is-home { height: auto; aspect-ratio: 640 / 620; max-height: 64svh; }
   .stage-frame.is-rack { height: auto; aspect-ratio: 480 / 680; max-height: 64svh; max-width: 520px; margin-inline: auto; }
   .hwb-readout { min-height: 150px; margin-top: 6px; }
-  .hwb-num { font-size: 15px; }
+  .hwb-count { font-size: 15px; }
   .hwb-name { margin: 0 0 4px; font-size: 24px; }
   .hwb-caption { min-height: 66px; }
   .hwb-caption p { font-size: 15px; line-height: 1.35; }
   .hwb-caption .note { font-size: 13px; margin-top: 2px; }
   .hwb-tags-live { margin-top: 6px; }
-  .hwb-controls { margin-top: 6px; min-height: 124px; }
-  .hwb-btns { margin-top: 6px; }
   .hwb-more { margin-top: 24px; }
 }
 
@@ -171,9 +140,13 @@
   .hwb-readout { min-height: 240px; }
 }
 
-/* Narrow phones: 8 dots would wrap 7 + 1, so lay them out 4 + 4. The 6 rack dots fit one row and stay flex. */
-@media (max-width: 384px) {
-  .hwb-dots:has(.hwb-dot:nth-child(8)) { display: grid; grid-template-columns: repeat(4, 44px); }
+/* Phones: arrows sit on the left and right edges of the picture, centered vertically */
+@media (max-width: 680px) {
+  .hwb-stagewrap { display: block; position: relative; }
+  .hwb-stagewrap .hwb-arrow { position: absolute; top: 50%; margin-top: -24px; z-index: 2; width: 48px; height: 48px; background: rgba(5, 12, 16, .78); color: var(--paper); border-color: var(--cyan-light); }
+  .hwb-stagewrap .hwb-prev { left: 4px; }
+  .hwb-stagewrap .hwb-next { right: 4px; }
+  .hwb-arrow:disabled { opacity: .35; }
 }
 
 /* Phones: the art is cropped by hwb-fx.js (building about 90% of the width), so the frame follows the crop's proportions */
@@ -188,3 +161,6 @@
 .hwb-teaser-text h2 { margin: 6px 0 20px; max-width: 24ch; font-size: clamp(28px, 3.4vw, 44px); }
 .hwb-teaser-text .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; }
 @media (max-width: 680px) { .hwb-teaser { grid-template-columns: minmax(0, 1fr); gap: 20px; } .hwb-teaser-art { max-width: 320px; } }
+
+/* Intro headline: sized so the intro, picture and caption read together on one screen */
+.hwb-intro h2 { font-size: clamp(28px, 3.4vw, 46px); line-height: 1.04; }
