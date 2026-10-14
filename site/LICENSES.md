@@ -1,6 +1,6 @@
 # Third-party assets and licences
 
-What `site/` actually serves. Updated for LIGHT-629 (How We Build, Concept B): `assets/rack-3d.js` bundles three.js 0.185.1 (MIT). The HDRI and the ambientCG textures from the earlier 3D version (LIGHT-476 intake) are **not** used and not served; the new scene has no textures or environment map.
+What `site/` actually serves. Updated for LIGHT-629 (How We Build, Concept B): `assets/rack-3d.js` bundles three.js 0.185.1 (MIT) in both `assets/rack-worker.js` and `assets/rack-3d.js`. The HDRI and the ambientCG textures from the earlier 3D version (LIGHT-476 intake) are **not** used and not served; the new scene has no textures or environment map.
 
 ## Served and third-party
 
@@ -9,12 +9,12 @@ What `site/` actually serves. Updated for LIGHT-629 (How We Build, Concept B): `
 | Barlow Condensed 600/700/800 (latin woff2) | `assets/fonts/barlow-condensed-*.woff2` | SIL Open Font License 1.1 (the families' published licence; the intake record is not in this repo: [unknown]) |
 | Inter (latin woff2) | `assets/fonts/inter-latin.woff2` | SIL Open Font License 1.1 (same note as above) |
 | Site photographs (AVIF/WebP) | `assets/photos/` | Per-photo licences and credits are on `photo-credits.html` |
-| three.js 0.185.1, bundled and minified | `assets/rack-3d.js` | MIT. Notice below. Same package version and lockfile integrity Security passed in LIGHT-476 (see `build-home3d/`) |
+| three.js 0.185.1, bundled and minified | `assets/rack-worker.js`, `assets/rack-3d.js` | MIT. Notice below. Same package version and lockfile integrity Security passed in LIGHT-476 (see `build-home3d/`) |
 
 ## Served and original to this project
 
 - `assets/hwb/*.svg` (How We Build stills, LIGHT-501) and the inline SVG drawings on `how-we-build.html`: drawn in code by `scripts/hwb/` (generic building and rack, unbranded). No third-party artwork.
-- `assets/rack-3d.js` apart from the bundled three.js: the MDF rack scene, built in code from `build-home3d/src/mdf-rack.js` (generic, unbranded, no model file). `assets/hwb/mdf-rack-final.webp` is a render of that scene.
+- `assets/rack-worker.js` and `assets/rack-3d.js` apart from the bundled three.js: the MDF rack scene, built in code from `build-home3d/src/mdf-core.js` (generic, unbranded, no model file). `assets/hwb/mdf-rack-final.webp` is a render of that scene.
 - `assets/how-we-build.js`, `assets/stage.css`, `assets/site.js`, `assets/site.bundle.css`, logo and share image: Hybridata's own.
 
 No other JavaScript library or icon set is shipped, and nothing loads from a third-party host.
@@ -25,7 +25,7 @@ No other JavaScript library or icon set is shipped, and nothing loads from a thi
 
 ## three.js licence notice (MIT)
 
-Three.js 0.185.1 is bundled and minified into `assets/rack-3d.js`. Its licence text, as shipped in the package:
+Three.js 0.185.1 is bundled and minified into `assets/rack-worker.js` and `assets/rack-3d.js`. Its licence text, as shipped in the package:
 
 > The MIT License
 >

@@ -1,7 +1,9 @@
 /* How We Build, Concept B: "How our MDFs are built". One generic, unbranded 42U four-post rack, built in code: no model file,
    no textures, no HDRI. Flat vector look: plain coloured faces, soft light, one blurred floor shadow.
    Every part belongs to a build step (1..8); `setState(step)` shows the parts up to that step and glides the camera.
-   Render on demand: frames are drawn only while something moves. */
+   Render on demand: frames are drawn only while something moves.
+   This file touches no DOM: it draws into the canvas it is given (a transferred OffscreenCanvas inside a worker, or a
+   normal canvas on the page) and takes size and pointer input as calls. */
 import {
   WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, MeshLambertMaterial, MeshBasicMaterial, BoxGeometry, CircleGeometry,
   PlaneGeometry, HemisphereLight, DirectionalLight, CanvasTexture, SRGBColorSpace, Color, Vector3, InstancedMesh, Object3D,
@@ -36,19 +38,17 @@ const POSE = {
 const FOCUS_POSE = { fiber: [1.78, 2.35, 20, 8], cabling: [1.4, 2.5, 8, 4] };
 const LIMIT = { az: [-100, 100], el: [-3, 52], dist: [1.1, 5.6] };
 
+const mkCanvas = (w, h) => (typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h }));
+const raf = (f) => (self.requestAnimationFrame ? self.requestAnimationFrame(f) : setTimeout(() => f(performance.now()), 16));
+const caf = (id) => (self.cancelAnimationFrame ? self.cancelAnimationFrame(id) : clearTimeout(id));
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const ease = (t) => t * t * (3 - 2 * t);
 const rad = (d) => (d * Math.PI) / 180;
 
-export function mount(frame, options) {
+export function create(canvas, options) {
   options = options || {};
   const phone = !!options.phone;
   const reduced = !!options.reduced;
-
-  const canvas = document.createElement('canvas');
-  canvas.className = 'mdf-canvas';
-  canvas.setAttribute('aria-hidden', 'true');
-  frame.insertBefore(canvas, frame.firstChild);
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: !!options.preserve, powerPreference: 'high-performance' });
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = SRGBColorSpace;
@@ -113,7 +113,7 @@ export function mount(frame, options) {
   floor.rotation.x = -Math.PI / 2; scene.add(floor);
   const ring = new Mesh(new CircleGeometry(2.1, 72), new MeshBasicMaterial({ color: 0x1d2d37 }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = -0.002; ring.scale.set(1.04, 1.04, 1); scene.add(ring);
-  const sc = document.createElement('canvas'); sc.width = sc.height = 128;
+  const sc = mkCanvas(128, 128);
   const g2 = sc.getContext('2d'), rg = g2.createRadialGradient(64, 64, 6, 64, 64, 62);
   rg.addColorStop(0, 'rgba(0,0,0,.62)'); rg.addColorStop(.55, 'rgba(0,0,0,.28)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
   g2.fillStyle = rg; g2.fillRect(0, 0, 128, 128);
@@ -195,49 +195,57 @@ export function mount(frame, options) {
   /* ---------- step 7: short patch cords through the horizontal managers, and labels ---------- */
   const labelsGroup = new Group();
   rack.add(labelsGroup);
-  const cordGeos = [[], [], []];
-  const hmAt = (u) => info.hms.find((m) => m.u === u);
-  const stubs = (px, py, z, dir, hmU, count, offset, colorStart) => {
-    const hmY = yc(hmU, 1);
-    for (let i = 0; i < count; i++) {
-      const x = px(i), cx = Math.round((x + 0.216) / 0.036) * 0.036 - 0.216 + 0.018;   // gap between two fingers
-      const pts = [
-        new Vector3(x, py, z), new Vector3(x + (cx - x) * 0.2, py + dir * 0.012, z + 0.02),
-        new Vector3(x + (cx - x) * 0.7, py + dir * 0.03, z + 0.024), new Vector3(cx, hmY - dir * 0.004, z + 0.012)
-      ];
-      cordGeos[(colorStart + i) % 3].push(new TubeGeometry(new CatmullRomCurve3(pts), 8, 0.0027, 5, false));
-    }
-  };
-  const zc = ZF + 0.011;
-  info.panels.forEach((p) => {
-    const y = yc(p.u, 1);
-    const above = hmAt(p.u + 1), below = hmAt(p.u - 1);
-    const dir = above && !below ? 1 : -1;     // pairs: the upper panel goes up, the lower panel goes down
-    const dirFix = above && below ? -1 : dir;
-    stubs((i) => -0.1783 + (i * 3 + 1) * 0.0155, y + dirFix * 0.014, zc, dirFix, dirFix > 0 ? p.u + 1 : p.u - 1, 8, 0, p.u);
-    // label strips above each block of six ports, and the panel's own tag
-    for (let b = 0; b < 4; b++) put(labelsGroup, 0.074, 0.0042, 0.003, 0xeef4f5, -0.1783 + (b * 6 + 2.5) * 0.0155, y + (dirFix > 0 ? -1 : 1) * 0.0146, zc - 0.002);
-  });
-  info.switches.forEach((s) => {
-    const y = yc(s.u, 1);
-    stubs((i) => -0.221 + (i * 3 + 1) * 0.0125, y + 0.0105 + 0.006, zc, 1, s.u + 1, 8, 0, s.u + 1);
-    stubs((i) => -0.221 + (i * 3 + 1) * 0.0125, y - 0.0105 - 0.006, zc, -1, s.u - 1, 8, 0, s.u);
-    put(labelsGroup, 0.05, 0.0075, 0.003, 0xeef4f5, -0.222, y, zc);
-  });
-  const cordMeshes = cordGeos.map((list, i) => {
-    const m = new Mesh(mergeGeometries(list), lam(CORD[i]));
-    m.userData.total = m.geometry.index.count;
-    rack.add(m);
-    return m;
-  });
-  const cordPart = { step: 7, t: 0, goal: 0 };
   labelsGroup.visible = false;
-  info.hms.forEach((m) => {   // a small white tag at the left end of every manager and device too
-    put(labelsGroup, 0.03, 0.0075, 0.003, 0xeef4f5, -0.232, yc(m.u, 1), zc);
-  });
+  const cordPart = { step: 7, t: 0, goal: 0 };
+  const cordMeshes = [];
+  let cordsBuilt = false;
+  function buildCords() {   // built on first need (a step ahead, or when idle): the cords are the costliest part of the scene
+    if (cordsBuilt) return;
+    cordsBuilt = true;
+    const cordGeos = [[], [], []];
+    const hmAt = (u) => info.hms.find((m) => m.u === u);
+    const stubs = (px, py, z, dir, hmU, count, offset, colorStart) => {
+      const hmY = yc(hmU, 1);
+      for (let i = 0; i < count; i++) {
+        const x = px(i), cx = Math.round((x + 0.216) / 0.036) * 0.036 - 0.216 + 0.018;   // gap between two fingers
+        const pts = [
+          new Vector3(x, py, z), new Vector3(x + (cx - x) * 0.2, py + dir * 0.012, z + 0.02),
+          new Vector3(x + (cx - x) * 0.7, py + dir * 0.03, z + 0.024), new Vector3(cx, hmY - dir * 0.004, z + 0.012)
+        ];
+        cordGeos[(colorStart + i) % 3].push(new TubeGeometry(new CatmullRomCurve3(pts), 8, 0.0027, 5, false));
+      }
+    };
+    const zc = ZF + 0.011;
+    info.panels.forEach((p) => {
+      const y = yc(p.u, 1);
+      const above = hmAt(p.u + 1), below = hmAt(p.u - 1);
+      const dir = above && !below ? 1 : -1;     // pairs: the upper panel goes up, the lower panel goes down
+      const dirFix = above && below ? -1 : dir;
+      stubs((i) => -0.1783 + (i * 3 + 1) * 0.0155, y + dirFix * 0.014, zc, dirFix, dirFix > 0 ? p.u + 1 : p.u - 1, 8, 0, p.u);
+      // label strips above each block of six ports, and the panel's own tag
+      for (let b = 0; b < 4; b++) put(labelsGroup, 0.074, 0.0042, 0.003, 0xeef4f5, -0.1783 + (b * 6 + 2.5) * 0.0155, y + (dirFix > 0 ? -1 : 1) * 0.0146, zc - 0.002);
+    });
+    info.switches.forEach((s) => {
+      const y = yc(s.u, 1);
+      stubs((i) => -0.221 + (i * 3 + 1) * 0.0125, y + 0.0105 + 0.006, zc, 1, s.u + 1, 8, 0, s.u + 1);
+      stubs((i) => -0.221 + (i * 3 + 1) * 0.0125, y - 0.0105 - 0.006, zc, -1, s.u - 1, 8, 0, s.u);
+      put(labelsGroup, 0.05, 0.0075, 0.003, 0xeef4f5, -0.222, y, zc);
+    });
+    cordGeos.forEach((list, i) => {
+      const m = new Mesh(mergeGeometries(list), lam(CORD[i]));
+      m.userData.total = m.geometry.index.count;
+      m.visible = false;
+      rack.add(m);
+      cordMeshes.push(m);
+    });
+    info.hms.forEach((m) => {   // a small white tag at the left end of every manager and device too
+      put(labelsGroup, 0.03, 0.0075, 0.003, 0xeef4f5, -0.232, yc(m.u, 1), zc);
+    });
+
+  }
 
   /* ---------- step 8: tested. Panel ports light green and a check badge pops up ---------- */
-  const bc = document.createElement('canvas'); bc.width = bc.height = 256;
+  const bc = mkCanvas(256, 256);
   const b2 = bc.getContext('2d');
   b2.fillStyle = '#1f8a5b'; b2.beginPath(); b2.arc(128, 128, 118, 0, 7); b2.fill();
   b2.lineWidth = 12; b2.strokeStyle = '#d8ffe9'; b2.beginPath(); b2.arc(128, 128, 118, 0, 7); b2.stroke();
@@ -265,13 +273,13 @@ export function mount(frame, options) {
     camera.lookAt(0, cam.ty, 0);
   }
 
-  let step = 1, raf = 0, last = 0, size = [0, 0], alive = true, drag = 0;
+  let step = 1, rafId = 0, last = 0, size = [0, 0], dpr = 1, alive = true, drag = 0;
   const SPEED = 5.2;   // 1/s: the glide settles in about a second
-  function setSize() {
-    const w = frame.clientWidth, h = frame.clientHeight;
-    if (!w || !h || (w === size[0] && h === size[1])) return;
-    size = [w, h];
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+  function setSize(w, h, ratio) {
+    ratio = Math.min(ratio || 1, maxDpr);
+    if (!w || !h || (w === size[0] && h === size[1] && ratio === dpr)) return;
+    size = [w, h]; dpr = ratio;
+    renderer.setPixelRatio(ratio);
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -292,7 +300,7 @@ export function mount(frame, options) {
     badge.visible = bt > 0.001;
   }
   function frameTick(now) {
-    raf = 0;
+    rafId = 0;
     if (!alive) return;
     const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
     last = now;
@@ -314,62 +322,55 @@ export function mount(frame, options) {
     applyParts();
     place();
     renderer.render(scene, camera);
-    if (moving && alive) raf = requestAnimationFrame(frameTick);
+    if (moving && alive) rafId = raf(frameTick);
   }
-  function wake() { if (!raf && alive) { last = performance.now(); raf = requestAnimationFrame(frameTick); } }
+  function wake() { if (!rafId && alive) { last = performance.now(); rafId = raf(frameTick); } }
 
   function setState(n, focus) {
     step = clamp(n | 0, 1, 8);
     const p = (focus && FOCUS_POSE[focus]) || POSE[step];
     goal.ty = p[0]; goal.dist = p[1]; goal.az = p[2]; goal.el = p[3];
     colorPorts(step >= 8);
+    if (step >= 6) buildCords();
     wake();
   }
 
-  /* ---------- orbit by pointer: drag to rotate, two fingers to pinch; vertical swipes still scroll the page ---------- */
+  /* ---------- orbit: drag to rotate, two fingers to pinch. Input arrives as calls (the page forwards its pointer events) ---------- */
   const ptrs = new Map();
   let pinch = 0;
   function stopGlide() { goal.ty = cam.ty; goal.dist = cam.dist; goal.az = cam.az; goal.el = cam.el; }
-  canvas.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    ptrs.set(e.pointerId, [e.clientX, e.clientY]);
-    canvas.setPointerCapture(e.pointerId);
-    if (ptrs.size === 2) { const a = [...ptrs.values()]; pinch = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]); }
-    stopGlide(); drag = 1; wake();
-  });
-  canvas.addEventListener('pointermove', (e) => {
-    const p = ptrs.get(e.pointerId);
-    if (!p) return;
-    const dx = e.clientX - p[0], dy = e.clientY - p[1];
-    p[0] = e.clientX; p[1] = e.clientY;
-    if (ptrs.size >= 2) {
-      const a = [...ptrs.values()], d = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]);
-      if (pinch > 0 && d > 0) cam.dist = clamp(cam.dist * (pinch / d), LIMIT.dist[0], LIMIT.dist[1]);
-      pinch = d;
+  function pointer(kind, id, x, y) {
+    if (kind === 'down') {
+      ptrs.set(id, [x, y]);
+      if (ptrs.size === 2) { const a = [...ptrs.values()]; pinch = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]); }
+      stopGlide(); drag = 1; wake();
+    } else if (kind === 'move') {
+      const p = ptrs.get(id);
+      if (!p) return;
+      const dx = x - p[0], dy = y - p[1];
+      p[0] = x; p[1] = y;
+      if (ptrs.size >= 2) {
+        const a = [...ptrs.values()], d = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]);
+        if (pinch > 0 && d > 0) cam.dist = clamp(cam.dist * (pinch / d), LIMIT.dist[0], LIMIT.dist[1]);
+        pinch = d;
+      } else {
+        cam.az = clamp(cam.az - dx * 0.35, LIMIT.az[0], LIMIT.az[1]);
+        cam.el = clamp(cam.el + dy * 0.25, LIMIT.el[0], LIMIT.el[1]);
+      }
+      stopGlide(); wake();
     } else {
-      cam.az = clamp(cam.az - dx * 0.35, LIMIT.az[0], LIMIT.az[1]);
-      cam.el = clamp(cam.el + dy * 0.25, LIMIT.el[0], LIMIT.el[1]);
+      ptrs.delete(id);
+      if (ptrs.size < 2) pinch = 0;
+      if (!ptrs.size) { drag = 0; stopGlide(); }
+      wake();
     }
+  }
+  function wheel(deltaY) {   // trackpad pinch (the page only forwards ctrl + wheel; a plain wheel keeps scrolling the page)
+    cam.dist = clamp(cam.dist * Math.exp(deltaY * 0.01), LIMIT.dist[0], LIMIT.dist[1]);
     stopGlide(); wake();
-  });
-  const up = (e) => {
-    ptrs.delete(e.pointerId);
-    if (ptrs.size < 2) pinch = 0;
-    if (!ptrs.size) { drag = 0; stopGlide(); }
-    wake();
-  };
-  canvas.addEventListener('pointerup', up);
-  canvas.addEventListener('pointercancel', up);
-  canvas.addEventListener('wheel', (e) => {   // pinch on a trackpad (ctrl + wheel); a plain wheel keeps scrolling the page
-    if (!e.ctrlKey) return;
-    e.preventDefault();
-    cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.01), LIMIT.dist[0], LIMIT.dist[1]);
-    stopGlide(); wake();
-  }, { passive: false });
+  }
 
-  const ro = new ResizeObserver(setSize);
-  ro.observe(frame);
-  setSize();
+  setSize(options.width, options.height, options.dpr);
   setState(options.step || 1, options.focus);
   // First paint without the glide: start parked on the first pose
   Object.assign(cam, goal);
@@ -377,16 +378,16 @@ export function mount(frame, options) {
   cordPart.t = cordPart.goal = cordPart.step <= step ? 1 : 0;
   testPart.t = testPart.goal = testPart.step <= step ? 1 : 0;
   applyParts(); place(); renderer.render(scene, camera);
+  if (step < 6) setTimeout(buildCords, 2500);
 
   return {
-    setState,
-    resize: setSize,
+    setState, setSize, pointer, wheel,
     /* test hooks: jump the camera (az/el degrees, dist metres, ty metres) and redraw */
     pose: (p) => { Object.assign(cam, p); Object.assign(goal, p); place(); renderer.render(scene, camera); return Object.assign({}, cam); },
     layout: LAYOUT,
     dispose() {
-      alive = false; if (raf) cancelAnimationFrame(raf); ro.disconnect();
-      renderer.dispose(); canvas.remove();
+      alive = false; if (rafId) caf(rafId);
+      renderer.dispose();
     }
   };
 }

@@ -101,15 +101,26 @@
     this.state = function () { return { step: step, focus: focus }; };
   }
 
-  /* The 3D rack. Loaded when the picture is within a screen of the viewport; a static image of the same final scene
-     replaces it only if WebGL is missing (or the bundle fails to load). */
+  /* The 3D rack. Loaded when the picture is within a screen of the viewport. The scene normally runs in a module worker
+     (rack-worker.js, drawing into a transferred OffscreenCanvas) so three.js never blocks the page; browsers without those
+     run rack-3d.js on the page's own thread. If WebGL is missing, a static image of the same final scene is shown instead. */
+  var BASE = document.currentScript && document.currentScript.src;
   function Rack(panel) {
     var frame = panel.querySelector('[data-mdf]');
     var still = frame && frame.querySelector('.mdf-still');
     if (!frame) return;
-    var latest = { step: 1, focus: '' }, api = null, started = false;
+    var latest = { step: 1, focus: '' }, started = false, ctl = null, canvas = null, worker = null, ro = null;
+    var self = this;
 
-    function showStill() { frame.classList.add('is-still'); if (still) { still.src = still.getAttribute('data-src'); still.hidden = false; } }
+    function showStill() {
+      if (ro) ro.disconnect();
+      if (worker) { worker.terminate(); worker = null; }
+      if (canvas) { canvas.remove(); canvas = null; }
+      ctl = null;
+      frame.classList.remove('is-3d');
+      frame.classList.add('is-still');
+      if (still) { still.src = still.getAttribute('data-src'); still.hidden = false; }
+    }
     function hasWebGL() {
       try {
         var c = document.createElement('canvas');
@@ -120,23 +131,100 @@
         return true;
       } catch (e) { return false; }
     }
+    function newCanvas() {
+      var c = document.createElement('canvas');
+      c.className = 'mdf-canvas';
+      c.setAttribute('aria-hidden', 'true');
+      frame.insertBefore(c, frame.firstChild);
+      return c;
+    }
+    function opts() {
+      return {
+        width: frame.clientWidth, height: frame.clientHeight, dpr: window.devicePixelRatio || 1,
+        phone: Math.min(window.innerWidth, window.innerHeight) <= 820 || window.matchMedia('(pointer: coarse)').matches,
+        reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+        step: latest.step, focus: latest.focus
+      };
+    }
+    // Forward the canvas's pointer input to the scene (worker or in-page): drag turns, two fingers pinch, ctrl + wheel zooms.
+    function wire(c) {
+      function send(k, e) {
+        var r = c.getBoundingClientRect();
+        ctl.pointer(k, e.pointerId, e.clientX - r.left, e.clientY - r.top);
+      }
+      c.addEventListener('pointerdown', function (e) {
+        if (!ctl || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        c.setPointerCapture(e.pointerId);
+        send('down', e);
+      });
+      c.addEventListener('pointermove', function (e) { if (ctl) send('move', e); });
+      c.addEventListener('pointerup', function (e) { if (ctl) send('up', e); });
+      c.addEventListener('pointercancel', function (e) { if (ctl) send('up', e); });
+      c.addEventListener('wheel', function (e) {
+        if (!e.ctrlKey || !ctl) return;
+        e.preventDefault();
+        ctl.wheel(e.deltaY);
+      }, { passive: false });
+      if (window.ResizeObserver) {
+        ro = new ResizeObserver(function () { if (ctl) ctl.size(frame.clientWidth, frame.clientHeight, window.devicePixelRatio || 1); });
+        ro.observe(frame);
+      }
+    }
+    function ready() { frame.classList.add('is-3d'); if (still) still.remove(); still = null; }
+
+    function startWorker() {
+      canvas = newCanvas();
+      var off = canvas.transferControlToOffscreen();
+      worker = new Worker(new URL('rack-worker.js', BASE), { type: 'module' });
+      var o = opts(), done = false;
+      function failOver(reason) {   // a canvas that went to a worker can't be drawn on again: start over with a fresh one
+        if (done) return; done = true;
+        if (worker) { worker.terminate(); worker = null; }
+        if (canvas) { canvas.remove(); canvas = null; }
+        ctl = null;
+        if (reason === 'nogl') showStill(); else startMain();
+      }
+      worker.onerror = function () { failOver('error'); };
+      worker.onmessage = function (e) {
+        var m = e.data;
+        if (m.t === 'ready') { done = true; ready(); }
+        else if (m.t === 'fail') failOver(/webgl|context/i.test(m.reason) ? 'nogl' : 'error');
+      };
+      ctl = {
+        state: function (st, f) { worker.postMessage({ t: 'state', step: st, focus: f }); },
+        size: function (w, h, d) { worker.postMessage({ t: 'size', w: w, h: h, dpr: d }); },
+        pointer: function (k, id, x, y) { worker.postMessage({ t: 'pointer', k: k, id: id, x: x, y: y }); },
+        wheel: function (dy) { worker.postMessage({ t: 'wheel', dy: dy }); },
+        pose: function (p) { worker.postMessage({ t: 'pose', pose: p }); }
+      };
+      o.t = 'init'; o.canvas = off;
+      worker.postMessage(o, [off]);
+      wire(canvas);
+    }
+    function startMain() {
+      if (!hasWebGL()) { showStill(); return; }
+      import('./rack-3d.js').then(function (m) {
+        canvas = newCanvas();
+        var scene = m.create(canvas, opts());
+        ctl = {
+          state: scene.setState, size: scene.setSize, pointer: scene.pointer, wheel: scene.wheel, pose: scene.pose
+        };
+        wire(canvas);
+        ready();
+      }).catch(function () { showStill(); });
+    }
     function start() {
       if (started) return;
       started = true;
-      if (!hasWebGL()) { showStill(); return; }
-      import('./rack-3d.js').then(function (m) {
-        api = m.mount(frame, {
-          phone: Math.min(window.innerWidth, window.innerHeight) <= 820 || window.matchMedia('(pointer: coarse)').matches,
-          reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-          step: latest.step, focus: latest.focus
-        });
-        frame.classList.add('is-3d');
-        if (still) still.remove();
-      }).catch(function () { showStill(); });
+      var c = document.createElement('canvas');
+      if (window.Worker && window.OffscreenCanvas && c.transferControlToOffscreen) {
+        try { startWorker(); return; } catch (e) { if (canvas) { canvas.remove(); canvas = null; } if (worker) { worker.terminate(); worker = null; } ctl = null; }
+      }
+      startMain();
     }
     panel.addEventListener('hwb:state', function (ev) {
       latest = ev.detail;
-      if (api) api.setState(latest.step, latest.focus);
+      if (ctl) ctl.state(latest.step, latest.focus);
     });
     function queue() { if (window.requestIdleCallback) requestIdleCallback(start, { timeout: 1500 }); else setTimeout(start, 200); }
     if ('IntersectionObserver' in window) {
@@ -145,7 +233,7 @@
       }, { rootMargin: '300px 0px' });
       io.observe(frame);
     } else queue();
-    Object.defineProperty(this, 'api', { get: function () { return api; } });
+    Object.defineProperty(self, 'api', { get: function () { return ctl; } });
   }
 
   // Tabs. A tab marked hidden (the Warehouse slot until it lands) is skipped everywhere.
