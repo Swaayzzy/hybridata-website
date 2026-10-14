@@ -1,0 +1,166 @@
+/* How We Build page and the two teasers. External stylesheet only: the site CSP is style-src 'self', so no inline styles in HTML or SVG.
+   Steps are still frames; the only motion is a short opacity crossfade (200 ms or less), removed with reduced motion. */
+.hyb-stage { --fiber: #53c3df; --cabling: #e0a85a; --wireless: #7fe3a0; --surveillance: #c79bff; --access: #ff9a6b; }
+.hwb { padding-block: 28px 56px; }
+.hwb-title { margin: 0 0 18px; font-size: clamp(34px, 5vw, 56px); line-height: 1; }
+
+/* Tabs */
+.hwb-tablist { display: flex; gap: 0; margin: 0 0 18px; border-bottom: 1px solid var(--line-strong); }
+.hwb:not(.is-ready) .hwb-tablist { visibility: hidden; }
+.hwb-tablist [role="tab"] { flex: 1 1 0; min-height: 48px; padding: 0 16px; color: var(--paper); background: transparent; border: 0; border-bottom: 4px solid transparent; font: 700 16px/1.1 var(--body); cursor: pointer; }
+.hwb-tablist [role="tab"][aria-selected="true"] { color: var(--cyan-light); border-bottom-color: var(--cyan); background: var(--panel-raised); }
+.hwb-tablist [role="tab"]:focus-visible, .hwb-panel:focus-visible { outline: 3px solid var(--cyan-light); outline-offset: -3px; }
+@media (min-width: 681px) { .hwb-tablist [role="tab"] { flex: 0 0 auto; min-width: 220px; } }
+
+/* Player */
+.hwb-player { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 32px; align-items: start; }
+.stage-frame { position: relative; width: 100%; height: clamp(300px, calc(100svh - 150px), 620px); background: radial-gradient(120% 90% at 50% 0%, #15232b 0%, #0a1116 70%); border: 1px solid var(--line-strong); overflow: hidden; }
+.stage-frame.is-rack { max-width: 520px; margin-inline: auto; }
+.stage-frame svg.bld-svg, .stage-frame svg.rack-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hwb-side { min-width: 0; }
+.hwb-readout { min-height: 190px; }
+.hwb-name { min-height: 1.05em; margin: 2px 0 8px; font-family: var(--display); font-size: 32px; line-height: 1.05; text-transform: uppercase; }
+.hwb-caption p { margin: 0; color: #dbe8ec; font-size: 16px; }
+.hwb-caption .note { margin-top: 6px; font-size: 14px; color: #a5b5bd; }
+.hwb-tags-live { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.hwb-tags-live li { padding: 3px 8px; font-size: 12px; line-height: 1.25; font-weight: 600; color: #04161d; background: var(--cyan-light); border-radius: 3px; }
+.hwb-steps { margin: 0; padding: 0; list-style: none; }
+.hwb .hwb-steps { display: none; }
+.hwb:not(.is-ready) .hwb-steps li { padding: 14px 0 14px 18px; border-left: 3px solid var(--line); }
+.hwb:not(.is-ready) .hwb-tags { display: none; }
+.picker-panel .hwb-tags { display: none; }
+
+/* Step arrows: large buttons on both sides of the picture, 48 px minimum */
+.hwb-stagewrap { display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; gap: 10px; align-items: center; min-width: 0; }
+.hwb-stagewrap .stage-frame { grid-column: 2; grid-row: 1; touch-action: pan-y; cursor: default; }
+.hwb-prev { grid-column: 1; grid-row: 1; }
+.hwb-next { grid-column: 3; grid-row: 1; }
+.hwb-arrow { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; padding: 0; color: var(--ink); background: var(--cyan-light); border: 2px solid var(--cyan-light); border-radius: 50%; cursor: pointer; }
+.hwb-arrow:hover:not(:disabled) { background: var(--paper); border-color: var(--paper); }
+.hwb-arrow:disabled { color: var(--paper); background: var(--panel-raised); border-color: var(--line-strong); opacity: .45; cursor: default; }
+.hwb-arrow:focus-visible, .picker-row button:focus-visible, .stage-frame:focus-visible { outline: 3px solid var(--paper); outline-offset: 3px; }
+.hwb:not(.is-ready) .hwb-arrow { display: none; }
+.hwb:not(.is-ready) .hwb-stagewrap { display: block; }
+.hwb-count { min-height: 1.3em; margin: 0; font-family: var(--display); font-size: 18px; letter-spacing: .08em; color: var(--cyan); }
+
+/* Above the player: intro. Below it: picker, CTAs */
+.hwb-more { grid-column: 1 / -1; }
+.hwb-intro { max-width: 760px; margin: 0 0 22px; }
+.hwb-intro p { color: #c1d0d5; font-size: 16px; margin: 12px 0 0; }
+.hwb .stage-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.picker { margin-top: 22px; max-width: 760px; }
+.picker-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.picker-row button { min-height: 48px; padding: 0 16px; color: var(--paper); background: var(--panel-raised); border: 1px solid var(--line-strong); border-radius: 0; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.picker-row button[aria-pressed="true"] { color: var(--ink); background: var(--cyan-light); border-color: var(--cyan-light); }
+.picker-out[hidden] { display: none; }
+.picker-out { margin-top: 12px; padding: 16px; background: var(--panel-raised); border: 1px solid var(--line); }
+.picker-out p { margin: 0 0 14px; color: #dbe8ec; }
+.picker-out .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; }
+.picker-h { margin: 0 0 10px; font-size: 18px; }
+
+/* Art layers (LIGHT-503). scripts/hwb/ emits .L[data-from][data-system] groups; the player adds .on for every layer whose
+   step has been reached.  The only transition is a short opacity crossfade. */
+.hyb-stage svg .L { opacity: 0; transition: opacity .18s ease; }
+.hyb-stage svg .L.on { opacity: 1; }
+/* cable runs draw along their path (pathLength=1), and un-draw when you jump back */
+.hyb-stage svg .draw { stroke-dasharray: 1; stroke-dashoffset: 1; stroke-linecap: butt;  }
+.hyb-stage svg .L.on .draw { stroke-dashoffset: 0; }
+.hyb-stage svg .L.up:not(.on) { transform: translateY(-34px); }
+.hyb-stage svg .L.peel:not(.on) { transform: translateY(-18px); }
+.hyb-stage svg .L.vml:not(.on) { transform: translateX(-28px); }
+.hyb-stage svg .L.vmr:not(.on) { transform: translateX(28px); }
+.hyb-stage svg .L.unit:not(.on) { transform: translateY(-12px); }
+.hyb-stage svg .L.pop { transform-box: fill-box; transform-origin: center; }
+.hyb-stage svg .L.pop:not(.on) { transform: scale(.55); }
+.hyb-stage svg .L.wrap { transform-box: fill-box; transform-origin: left center; }
+.hyb-stage svg .L.wrap:not(.on) { transform: scaleX(0); }
+.hyb-stage svg .rip { transform-box: fill-box; transform-origin: center; }
+.hyb-stage svg .L:not(.on) .rip { transform: scale(.35); }
+/* building: closed facade and roof at stage 1, then they lift away */
+.hyb-stage svg .facade { transition: opacity .18s ease; }
+.hyb-stage svg .roof { transition: opacity .18s ease; }
+.bld:not([data-stage="1"]) .facade { opacity: 0; }
+.bld:not([data-stage="1"]) .roof { transform: translateY(-34px); opacity: .22; }
+/* service picker: the chosen system stays bright, the building shell dims, the rest nearly vanishes */
+.bld[data-focus] .L:not(.is-focus) { opacity: .12; }
+.bld[data-focus] .L[data-system=""]:not(.is-focus) { opacity: .38; }
+.bld[data-focus] .facade { opacity: 0; }
+/* callouts: only the current step's labels (or the picked system's) show; the phone set is bigger type, fewer words */
+.hyb-stage svg .lbl, .hyb-stage svg .tg { opacity: 0; transition: opacity .18s ease; }
+.hyb-stage svg .lbl-n, .hyb-stage svg .tg-n { display: none; }
+@media (max-width: 680px) { .hyb-stage svg .lbl-w, .hyb-stage svg .tg-w { display: none; } .hyb-stage svg .lbl-n, .hyb-stage svg .tg-n { display: inline; } }
+.bld[data-stage="1"]:not([data-focus]) .lbl.s1, .bld[data-stage="2"]:not([data-focus]) .lbl.s2, .bld[data-stage="3"]:not([data-focus]) .lbl.s3,
+.bld[data-stage="4"]:not([data-focus]) .lbl.s4, .bld[data-stage="5"]:not([data-focus]) .lbl.s5, .bld[data-stage="6"]:not([data-focus]) .lbl.s6,
+.bld[data-stage="7"]:not([data-focus]) .lbl.s7, .bld[data-stage="8"]:not([data-focus]) .lbl.s8,
+.rack[data-stage="1"] .lbl.s1, .rack[data-stage="2"] .lbl.s2, .rack[data-stage="3"] .lbl.s3, .rack[data-stage="4"] .lbl.s4,
+.rack[data-stage="5"] .lbl.s5, .rack[data-stage="6"] .lbl.s6,
+.bld[data-focus="fiber"] .lbl.f-fiber, .bld[data-focus="cabling"] .lbl.f-cabling, .bld[data-focus="wireless"] .lbl.f-wireless,
+.bld[data-focus="surveillance"] .lbl.f-surveillance, .bld[data-focus="access"] .lbl.f-access { opacity: 1; }
+/* "(illustrative)" printed on the coverage ripple (home, from stage 5) and on the test trace (rack, step 6) */
+.bld[data-stage="5"]:not([data-focus]) .tg, .bld[data-stage="6"]:not([data-focus]) .tg, .bld[data-stage="7"]:not([data-focus]) .tg,
+.bld[data-stage="8"]:not([data-focus]) .tg, .bld[data-focus="wireless"] .tg, .rack[data-stage="6"] .tg { opacity: 1; }
+/* Reduced motion: the swap is instant. */
+@media (prefers-reduced-motion: reduce) {
+  .hyb-stage svg .L, .hyb-stage svg .roof, .hyb-stage svg .facade, .hyb-stage svg .lbl, .hyb-stage svg .tg { transition: none !important; }
+}
+
+/* Before JS runs (or without it) show every layer so the drawing is never blank. */
+.hwb:not(.is-ready) svg .L { opacity: 1; transform: none; }
+.hwb:not(.is-ready) svg .draw { stroke-dashoffset: 0; transition: none; }
+.hwb:not(.is-ready) svg .L .rip, .hwb:not(.is-ready) svg .L.pop, .hwb:not(.is-ready) svg .L.wrap { transform: none; }
+.hwb:not(.is-ready) svg .facade { opacity: 0; }
+.hwb:not(.is-ready) svg .bld .roof, .hwb:not(.is-ready) svg .roof { opacity: .22; transform: translateY(-34px); }
+.hwb:not(.is-ready) .bld .lbl.s8, .hwb:not(.is-ready) .rack .lbl.s6, .hwb:not(.is-ready) svg .tg { opacity: 1; }
+
+/* Tablet and phone: art, caption and arrows stack on one screen */
+@media (max-width: 900px) {
+  .hwb { padding-block: 16px 40px; }
+  .hwb-title { margin-bottom: 10px; font-size: 32px; }
+  .hwb-tablist { margin-bottom: 8px; }
+  .hwb-tablist [role="tab"] { min-height: 44px; padding: 0 8px; font-size: 15px; }
+  .hwb-player { display: block; }
+  .stage-frame.is-home { height: auto; aspect-ratio: 640 / 620; max-height: 64svh; }
+  .stage-frame.is-rack { height: auto; aspect-ratio: 480 / 680; max-height: 64svh; max-width: 520px; margin-inline: auto; }
+  .hwb-readout { min-height: 150px; margin-top: 6px; }
+  .hwb-count { font-size: 15px; }
+  .hwb-name { margin: 0 0 4px; font-size: 24px; }
+  .hwb-caption { min-height: 66px; }
+  .hwb-caption p { font-size: 15px; line-height: 1.35; }
+  .hwb-caption .note { font-size: 13px; margin-top: 2px; }
+  .hwb-tags-live { margin-top: 6px; }
+  .hwb-more { margin-top: 24px; }
+}
+
+/* Reserve the readout height (number, name, longest caption, tags) so Play, Replay, Prev/Next and the dots stay put between steps.
+   Heights are the tallest measured step of either tab at that width. */
+@media (max-width: 460px) {
+  .hwb-readout { min-height: 192px; }
+}
+@media (min-width: 901px) and (max-width: 1079px) {
+  .hwb-readout { min-height: 240px; }
+}
+
+/* Phones: arrows sit on the left and right edges of the picture, centered vertically */
+@media (max-width: 680px) {
+  .hwb-stagewrap { display: block; position: relative; }
+  .hwb-stagewrap .hwb-arrow { position: absolute; top: 50%; margin-top: -24px; z-index: 2; width: 48px; height: 48px; background: rgba(5, 12, 16, .78); color: var(--paper); border-color: var(--cyan-light); }
+  .hwb-stagewrap .hwb-prev { left: 4px; }
+  .hwb-stagewrap .hwb-next { right: 4px; }
+  .hwb-arrow:disabled { opacity: .35; }
+}
+
+/* Phones: the art is cropped by hwb-fx.js (building about 90% of the width), so the frame follows the crop's proportions */
+@media (max-width: 680px) {
+  .stage-frame.is-home { aspect-ratio: 640 / 571; max-height: none; }
+  .stage-frame.is-rack { aspect-ratio: 480 / 600; max-height: none; max-width: none; }
+}
+
+/* Teasers on the home page and the data center page */
+.hwb-teaser { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 40px; align-items: center; }
+.hwb-teaser-art { display: block; width: 100%; height: auto; background: radial-gradient(120% 90% at 50% 0%, #15232b 0%, #0a1116 70%); border: 1px solid var(--line-strong); }
+.hwb-teaser-text h2 { margin: 6px 0 20px; max-width: 24ch; font-size: clamp(28px, 3.4vw, 44px); }
+.hwb-teaser-text .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; }
+@media (max-width: 680px) { .hwb-teaser { grid-template-columns: minmax(0, 1fr); gap: 20px; } .hwb-teaser-art { max-width: 320px; } }
+
+/* Intro headline: sized so the intro, picture and caption read together on one screen */
+.hwb-intro h2 { font-size: clamp(28px, 3.4vw, 46px); line-height: 1.04; }
