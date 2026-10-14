@@ -1,6 +1,6 @@
 # Third-party assets and licences
 
-What `site/` actually serves. Updated for LIGHT-503 (adds `assets/hwb-fx.js` and the 2.5D art; no new third-party asset) and LIGHT-502, which removed the 3D view: three.js, the Poly Haven HDRI and the ambientCG textures (all CC0 / MIT) are **no longer served** and are not listed. They remain in git history (commits `42cf8cb`, `bf9463d`, `894dc58`) and their Security intake record is LIGHT-476.
+What `site/` actually serves. Updated for LIGHT-629 (How We Build, Concept B): `assets/rack-3d.js` bundles three.js 0.185.1 (MIT). The HDRI and the ambientCG textures from the earlier 3D version (LIGHT-476 intake) are **not** used and not served; the new scene has no textures or environment map.
 
 ## Served and third-party
 
@@ -9,14 +9,42 @@ What `site/` actually serves. Updated for LIGHT-503 (adds `assets/hwb-fx.js` and
 | Barlow Condensed 600/700/800 (latin woff2) | `assets/fonts/barlow-condensed-*.woff2` | SIL Open Font License 1.1 (the families' published licence; the intake record is not in this repo: [unknown]) |
 | Inter (latin woff2) | `assets/fonts/inter-latin.woff2` | SIL Open Font License 1.1 (same note as above) |
 | Site photographs (AVIF/WebP) | `assets/photos/` | Per-photo licences and credits are on `photo-credits.html` |
+| three.js 0.185.1, bundled and minified | `assets/rack-3d.js` | MIT. Notice below. Same package version and lockfile integrity Security passed in LIGHT-476 (see `build-home3d/`) |
 
 ## Served and original to this project
 
 - `assets/hwb/*.svg` (How We Build stills, LIGHT-501) and the inline SVG drawings on `how-we-build.html`: drawn in code by `scripts/hwb/` (generic building and rack, unbranded). No third-party artwork.
-- `assets/how-we-build.js`, `assets/hwb-fx.js`, `assets/stage.css`, `assets/site.js`, `assets/site.bundle.css`, logo and share image: Hybridata's own.
+- `assets/rack-3d.js` apart from the bundled three.js: the MDF rack scene, built in code from `build-home3d/src/mdf-rack.js` (generic, unbranded, no model file). `assets/hwb/mdf-rack-final.webp` is a render of that scene.
+- `assets/how-we-build.js`, `assets/stage.css`, `assets/site.js`, `assets/site.bundle.css`, logo and share image: Hybridata's own.
 
-No JavaScript library, icon set, WebGL or canvas code is shipped, and nothing loads from a third-party host.
+No other JavaScript library or icon set is shipped, and nothing loads from a third-party host.
 
 ## Not shipped
 
-`build-home3d/` holds the old 3D build tooling and sources for reference only. Its `licenses.py` and `licenses-rack.py` are disabled (renamed `*.disabled`) so they can't overwrite this file.
+`build-home3d/` holds the 3D build tooling (`scripts/build-mdf.mjs` builds `assets/rack-3d.js`) and the earlier v1 sources, kept for reference. Its `licenses.py` and `licenses-rack.py` are disabled (renamed `*.disabled`) so they can't overwrite this file.
+
+## three.js licence notice (MIT)
+
+Three.js 0.185.1 is bundled and minified into `assets/rack-3d.js`. Its licence text, as shipped in the package:
+
+> The MIT License
+>
+> Copyright © 2010-2026 three.js authors
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in
+> all copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+> THE SOFTWARE.
