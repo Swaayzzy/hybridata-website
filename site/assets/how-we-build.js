@@ -29,7 +29,7 @@
     var picks = Array.prototype.slice.call(panel.querySelectorAll('.picker-row button'));
     var panelsOut = Array.prototype.slice.call(panel.querySelectorAll('.picker-panel'));
     var pickOut = panel.querySelector('.picker-out');
-    var step = 1, focus = '';
+    var step = 1, focus = '', nogl = false;
 
     function render() {
       var li = items[step - 1];
@@ -49,6 +49,7 @@
     }
 
     function go(k) {
+      if (nogl) return;
       if (focus) clearFocus();
       step = Math.max(1, Math.min(n, k));
       render();
@@ -87,6 +88,7 @@
         picks.forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
         panelsOut.forEach(function (p) { p.hidden = p.getAttribute('data-sys') !== sys; });
         if (pickOut) pickOut.hidden = false;
+        if (nogl) return;   // the still shows the finished scene, so the caption stays on the last step
         step = Math.max(1, Math.min(n, +b.getAttribute('data-step') || n));
         countEl.textContent = step + ' / ' + n;
         nameEl.textContent = items[step - 1].querySelector('h3').textContent;
@@ -96,7 +98,9 @@
       });
     });
 
-    this.reset = function () { clearFocus(); step = 1; render(); };
+    // No WebGL: the picture is the finished scene, so show the last step's caption, with no arrows and no counter (hidden in CSS).
+    panel.addEventListener('hwb:nogl', function () { nogl = true; clearFocus(); step = n; render(); });
+    this.reset = function () { clearFocus(); step = nogl ? n : 1; render(); };
     this.go = go;
     this.state = function () { return { step: step, focus: focus }; };
   }
@@ -109,6 +113,17 @@
     'warehouse': { frame: '[data-scene]', still: '.scene-still', cls: 'scene-canvas', worker: 'warehouse-worker.js', main: './warehouse-3d.js' },
     'mdf-rack': { frame: '[data-mdf]', still: '.mdf-still', cls: 'mdf-canvas', worker: 'rack-worker.js', main: './rack-3d.js' }
   };
+  var glOk = null;   // asked before anything creates a WebGL context, so a browser without it never logs context errors
+  function hasWebGL() {
+    if (glOk !== null) return glOk;
+    try {
+      var c = document.createElement('canvas');
+      var gl = c.getContext('webgl2') || c.getContext('webgl');
+      glOk = !!gl;
+      if (gl) { var x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); }
+    } catch (e) { glOk = false; }
+    return glOk;
+  }
   function Rack(panel, cfg) {
     var frame = panel.querySelector(cfg.frame);
     var still = frame && frame.querySelector(cfg.still);
@@ -123,17 +138,9 @@
       ctl = null;
       frame.classList.remove('is-3d');
       frame.classList.add('is-still');
+      panel.classList.add('is-nogl');
+      panel.dispatchEvent(new CustomEvent('hwb:nogl'));
       if (still) { still.src = still.getAttribute('data-src'); still.hidden = false; }
-    }
-    function hasWebGL() {
-      try {
-        var c = document.createElement('canvas');
-        var gl = c.getContext('webgl2') || c.getContext('webgl');
-        if (!gl) return false;
-        var x = gl.getExtension('WEBGL_lose_context');
-        if (x) x.loseContext();
-        return true;
-      } catch (e) { return false; }
     }
     function newCanvas() {
       var c = document.createElement('canvas');
@@ -220,6 +227,7 @@
     function start() {
       if (started) return;
       started = true;
+      if (!hasWebGL()) { showStill(); return; }
       var c = document.createElement('canvas');
       if (window.Worker && window.OffscreenCanvas && c.transferControlToOffscreen) {
         try { startWorker(); return; } catch (e) { if (canvas) { canvas.remove(); canvas = null; } if (worker) { worker.terminate(); worker = null; } ctl = null; }

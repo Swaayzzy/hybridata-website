@@ -124,3 +124,13 @@
   .hwb-player[data-kind="warehouse"] { display: block; }
   .stage-frame.is-wh { height: auto; aspect-ratio: 1 / 1; max-height: 62svh; max-width: 640px; margin-inline: auto; }
 }
+
+/* How We Build, no WebGL: the picture is the finished scene, so no step arrows or counter (the script shows the last step's caption) */
+.hwb-panel.is-nogl .hwb-arrow, .hwb-panel.is-nogl .hwb-count { display: none; }
+.hwb-panel.is-nogl .hwb-stagewrap { grid-template-columns: minmax(0, 1fr); }
+.hwb-panel.is-nogl .hwb-stagewrap .stage-frame { grid-column: 1; }
+
+/* Desktop: keep the whole picture inside the first screen (header, title, tabs and intro sit above it) */
+@media (min-width: 901px) {
+  .hwb .stage-frame { height: clamp(380px, calc(100svh - 450px), 620px); }
+}

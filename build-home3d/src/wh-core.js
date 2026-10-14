@@ -41,7 +41,8 @@ const POSE = {
   1: [-5, 0, 7, 112, 8, 38], 2: [-22, 0, 26, 40, 22, 32], 3: [-24.5, 1.2, 14.5, 15, -8, 36], 4: [3, 3, 3, 78, 4, 52],
   5: [-4, 6, 0, 56, 14, 40], 6: [-3, 4, -2, 42, 12, 46], 7: [0, 3, -4, 62, 4, 44], 8: [-3, 0, 4, 104, 10, 40], 9: [-5, 0, 7, 112, 8, 38]
 };
-const LIMIT = { el: [7, 84], dist: [16, 140] };
+const LIMIT = { el: [7, 84], dist: [16, 320] };
+const WHOLE = { 1: 1, 8: 1, 9: 1 };   // poses that show the whole building: their distance is fitted to the canvas's aspect
 
 const mkCanvas = (w, h) => (typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h }));
 const raf = (f) => (self.requestAnimationFrame ? self.requestAnimationFrame(f) : setTimeout(() => f(performance.now()), 16));
@@ -498,8 +499,32 @@ export function create(canvas, options) {
   /* ---------- camera: spherical orbit around the pose target, clamped; glides between poses ---------- */
   const cam = { tx: 0, ty: 0, tz: 0, dist: 90, az: 0, el: 30 };
   const goal = Object.assign({}, cam);
-  let aspect = 1, fit = 1;
-  function setPose(p) { goal.tx = p[0]; goal.ty = p[1]; goal.tz = p[2]; goal.dist = p[3]; goal.az = p[4]; goal.el = p[5]; }
+  let aspect = 1, fit = 1, fitAspect = 0;
+  /* Distance at which the whole building (walls, MDF room) sits inside the view for this target and angle, at this aspect. */
+  const _c = new Vector3(), _f = new Vector3(), _r = new Vector3(), _u = new Vector3();
+  function fitDist(tx, ty, tz, az, el, a) {
+    const ra = rad(az), re = rad(clamp(el, LIMIT.el[0], LIMIT.el[1]));
+    _f.set(-Math.sin(ra) * Math.cos(re), -Math.sin(re), -Math.cos(ra) * Math.cos(re));   // view direction
+    _r.set(Math.cos(ra), 0, -Math.sin(ra));                                              // screen right
+    _u.crossVectors(_r, _f);                                                             // screen up
+    const th = Math.tan(rad(camera.fov) / 2), tw = th * a;
+    let need = 0;
+    for (const x of [-W, W]) for (const y of [0, H]) for (const z of [-D, D]) {
+      _c.set(x - tx, y - ty, z - tz);
+      const px = _c.dot(_r), py = _c.dot(_u), pz = _c.dot(_f);   // camera at distance d: depth = d + pz
+      // need |px| <= m * tw * (d + pz) and |py| <= m * th * (d + pz)
+      need = Math.max(need, Math.abs(px) / (0.94 * tw) - pz, Math.abs(py) / (0.94 * th) - pz);
+    }
+    return need;
+  }
+  function setPose(p, n) {
+    goal.tx = p[0]; goal.ty = p[1]; goal.tz = p[2]; goal.dist = p[3]; goal.az = p[4]; goal.el = p[5];
+    if (WHOLE[n]) {
+      goal.tx = 0; goal.ty = H * 0.4; goal.tz = 0;   // centre on the building
+      if (aspect < 0.8) goal.el = Math.max(goal.el, 50);   // portrait: look down more so the depth uses the tall canvas
+      goal.dist = fitDist(goal.tx, goal.ty, goal.tz, goal.az, goal.el, aspect) / fit;   // place() multiplies by fit again
+    }
+  }
   function place() {
     const d = cam.dist * fit, a = rad(cam.az), e = rad(clamp(cam.el, LIMIT.el[0], LIMIT.el[1]));
     camera.position.set(cam.tx + Math.sin(a) * Math.cos(e) * d, Math.max(1.5, cam.ty + Math.sin(e) * d), cam.tz + Math.cos(a) * Math.cos(e) * d);
@@ -519,6 +544,7 @@ export function create(canvas, options) {
     aspect = w / h; fit = Math.max(1, 1 / aspect) * (aspect > 1.4 ? 0.88 : 1);
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
+    if (WHOLE[step] && !drag && Math.abs(aspect - fitAspect) > 0.01) { fitAspect = aspect; setPose(POSE[step], step); }   // refit on resize / rotate
     wake();
   }
   function frameTick(now) {
@@ -551,7 +577,8 @@ export function create(canvas, options) {
 
   function setState(n) {
     step = clamp(n | 0, 1, STEPS);
-    setPose(POSE[step]);
+    fitAspect = aspect;
+    setPose(POSE[step], step);
     targets(step);
     wake();
   }
