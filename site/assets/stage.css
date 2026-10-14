@@ -111,3 +111,16 @@
 .mdf-key .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255, 255, 255, .35); }
 .sw-fiber { background: #7d55c7; } .sw-manager { background: #39424c; } .sw-patch { background: #2f6fb0; } .sw-switch { background: #1f8a5b; }
 .sw-firewall { background: #a3424a; } .sw-shelf { background: #59636d; } .sw-ups { background: #b5651d; }
+
+/* Warehouse (Concept A): a wider picture on desktop, a square one on phones */
+.hwb-player[data-kind="warehouse"] { grid-template-columns: minmax(0, 1.6fr) minmax(0, .8fr); }
+.stage-frame.is-wh { max-width: none; }
+.scene-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.scene-still[hidden] { display: none; }
+.scene-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: grab; }
+.scene-canvas:active { cursor: grabbing; }
+.sw-wfiber { background: #53c3df; } .sw-wtray { background: #e0a85a; } .sw-wwifi { background: #7fe3a0; } .sw-wcam { background: #c79bff; } .sw-wacc { background: #ff9a6b; }
+@media (max-width: 900px) {
+  .hwb-player[data-kind="warehouse"] { display: block; }
+  .stage-frame.is-wh { height: auto; aspect-ratio: 1 / 1; max-height: 62svh; max-width: 640px; margin-inline: auto; }
+}

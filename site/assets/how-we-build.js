@@ -1,6 +1,6 @@
 /* How We Build: tabs (Warehouse / MDF rack) and the step viewer.
    Each step is reached with the ‹ › buttons, a flick on touch or the arrow keys. No timers, no autoplay.
-   The MDF rack's 3D scene (rack-3d.js) is fetched only when its picture is near the viewport. */
+   Each 3D scene (the warehouse, the MDF rack) is fetched only when its picture is near the viewport. */
 (function () {
   'use strict';
   var root = document.getElementById('how-we-build');
@@ -87,11 +87,11 @@
         picks.forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
         panelsOut.forEach(function (p) { p.hidden = p.getAttribute('data-sys') !== sys; });
         if (pickOut) pickOut.hidden = false;
-        step = n;
+        step = Math.max(1, Math.min(n, +b.getAttribute('data-step') || n));
         countEl.textContent = step + ' / ' + n;
         nameEl.textContent = items[step - 1].querySelector('h3').textContent;
         capEl.innerHTML = items[step - 1].querySelector('.hwb-cap').innerHTML;
-        bPrev.disabled = false; bNext.disabled = true;
+        bPrev.disabled = step <= 1; bNext.disabled = step >= n;
         panel.dispatchEvent(new CustomEvent('hwb:state', { detail: { step: step, focus: focus } }));
       });
     });
@@ -101,13 +101,17 @@
     this.state = function () { return { step: step, focus: focus }; };
   }
 
-  /* The 3D rack. Loaded when the picture is within a screen of the viewport. The scene normally runs in a module worker
-     (rack-worker.js, drawing into a transferred OffscreenCanvas) so three.js never blocks the page; browsers without those
-     run rack-3d.js on the page's own thread. If WebGL is missing, a static image of the same final scene is shown instead. */
+  /* A 3D scene (warehouse or MDF rack). Loaded when the picture is within a screen of the viewport. The scene normally runs in a
+     module worker (drawing into a transferred OffscreenCanvas) so three.js never blocks the page; browsers without those run the
+     same scene on the page's own thread. If WebGL is missing, a static image of the same final scene is shown instead. */
   var BASE = document.currentScript && document.currentScript.src;
-  function Rack(panel) {
-    var frame = panel.querySelector('[data-mdf]');
-    var still = frame && frame.querySelector('.mdf-still');
+  var SCENES = {
+    'warehouse': { frame: '[data-scene]', still: '.scene-still', cls: 'scene-canvas', worker: 'warehouse-worker.js', main: './warehouse-3d.js' },
+    'mdf-rack': { frame: '[data-mdf]', still: '.mdf-still', cls: 'mdf-canvas', worker: 'rack-worker.js', main: './rack-3d.js' }
+  };
+  function Rack(panel, cfg) {
+    var frame = panel.querySelector(cfg.frame);
+    var still = frame && frame.querySelector(cfg.still);
     if (!frame) return;
     var latest = { step: 1, focus: '' }, started = false, ctl = null, canvas = null, worker = null, ro = null;
     var self = this;
@@ -133,7 +137,7 @@
     }
     function newCanvas() {
       var c = document.createElement('canvas');
-      c.className = 'mdf-canvas';
+      c.className = cfg.cls;
       c.setAttribute('aria-hidden', 'true');
       frame.insertBefore(c, frame.firstChild);
       return c;
@@ -175,7 +179,7 @@
     function startWorker() {
       canvas = newCanvas();
       var off = canvas.transferControlToOffscreen();
-      worker = new Worker(new URL('rack-worker.js', BASE), { type: 'module' });
+      worker = new Worker(new URL(cfg.worker, BASE), { type: 'module' });
       var o = opts(), done = false;
       function failOver(reason) {   // a canvas that went to a worker can't be drawn on again: start over with a fresh one
         if (done) return; done = true;
@@ -203,7 +207,7 @@
     }
     function startMain() {
       if (!hasWebGL()) { showStill(); return; }
-      import('./rack-3d.js').then(function (m) {
+      import(cfg.main).then(function (m) {
         canvas = newCanvas();
         var scene = m.create(canvas, opts());
         ctl = {
@@ -236,21 +240,21 @@
     Object.defineProperty(self, 'api', { get: function () { return ctl; } });
   }
 
-  // Tabs. A tab marked hidden (the Warehouse slot until it lands) is skipped everywhere.
+  // Tabs. A tab marked hidden is skipped everywhere.
   var allTabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
   function liveTabs() { return allTabs.filter(function (t) { return !t.hidden; }); }
   var viewers = {}, racks = {};
   allTabs.forEach(function (t) {
     var key = t.getAttribute('data-tab'), p = document.getElementById(t.getAttribute('aria-controls'));
     viewers[key] = new Viewer(p);
-    if (key === 'mdf-rack') racks[key] = new Rack(p);
+    if (SCENES[key]) racks[key] = new Rack(p, SCENES[key]);
   });
 
   var current = '';
   function firstKey() { var l = liveTabs(); return l.length ? l[0].getAttribute('data-tab') : ''; }
   function valid(k) { return liveTabs().some(function (t) { return t.getAttribute('data-tab') === k; }); }
   function select(key, focusTab, updateHash) {
-    if (!valid(key)) key = valid('mdf-rack') ? 'mdf-rack' : firstKey();
+    if (!valid(key)) key = valid('warehouse') ? 'warehouse' : firstKey();
     var changed = key !== current;
     allTabs.forEach(function (t) {
       var on = t.getAttribute('data-tab') === key;
@@ -263,7 +267,7 @@
     // replaceState never scrolls and adds no history entry.
     if (updateHash && location.hash !== '#' + key && window.history && history.replaceState) history.replaceState(null, '', '#' + key);
   }
-  function fromHash() { var h = location.hash.replace('#', ''); h = ALIAS[h] || h; return valid(h) ? h : 'mdf-rack'; }
+  function fromHash() { var h = location.hash.replace('#', ''); h = ALIAS[h] || h; return valid(h) ? h : 'warehouse'; }
 
   allTabs.forEach(function (t) {
     t.addEventListener('click', function () { select(t.getAttribute('data-tab'), false, true); });
@@ -289,6 +293,7 @@
     select: function (k) { select(k, false, true); },
     go: function (k, s) { viewers[k].go(s); },
     get tab() { return current; },
-    get rack() { return racks['mdf-rack'] && racks['mdf-rack'].api; }
+    get rack() { return racks['mdf-rack'] && racks['mdf-rack'].api; },
+    get warehouse() { return racks['warehouse'] && racks['warehouse'].api; }
   };
 })();

@@ -10,6 +10,7 @@
     "build": "node scripts/build.mjs",
     "assets:rack": "python3 scripts/make-assets-rack.py",
     "build:rack": "node scripts/build-rack.mjs",
+    "build:wh": "node scripts/build-wh.mjs",
     "licenses:rack": "echo 'disabled: LICENSES.md is maintained by hand since LIGHT-502' && exit 1"
   },
   "dependencies": {
