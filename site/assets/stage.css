@@ -14,7 +14,7 @@
 
 /* Player */
 .hwb-player { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 32px; align-items: start; }
-.stage-frame { position: relative; width: 100%; height: clamp(300px, calc(100svh - 250px), 620px); background: radial-gradient(120% 90% at 50% 0%, #1b2d37 0%, #0a1116 72%); border: 1px solid var(--line-strong); overflow: hidden; }
+.stage-frame { position: relative; width: 100%; height: clamp(420px, calc(100svh - 340px), 620px); background: radial-gradient(120% 90% at 50% 0%, #1b2d37 0%, #0a1116 72%); border: 1px solid var(--line-strong); overflow: hidden; }
 .hwb-side { min-width: 0; }
 .hwb-readout { min-height: 190px; }
 .hwb-name { min-height: 1.05em; margin: 2px 0 8px; font-family: var(--display); font-size: 32px; line-height: 1.05; text-transform: uppercase; }
