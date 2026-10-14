@@ -336,15 +336,15 @@ export function create(canvas, options) {
   };
   {
     const mb = new Batch();
-    const pat1 = ['rFiber', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rFw', 'rFw', 'rUps', 'rUps'];
-    const pat2 = ['rFiber', 'rFiber', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rFw', 'rUps', 'rUps'];
-    [-26.4, -25.2, -24.0].forEach((x, i) => rackFaces(mb, 'mdf', x, 12.1, 0, i === 1 ? pat2 : pat1, 2.1, 0.105));
+    const pat1 = ['rFiber', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rFw', 'rFw', 'rUps', 'rUps'];
+    const pat2 = ['rFiber', 'rFiber', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rFw', 'rUps', 'rUps'];
+    [-26.4, -25.2, -24.0].forEach((x, i) => rackFaces(mb, 'mdf', x, 12.1, 0, i === 1 ? pat2 : pat1, 2.1, 0.1));
     const lad = M(0x7f909c, 'mdf');
     mb.box(lad, 4.2, 0.06, 0.05, -25.2, 2.42, 11.3); mb.box(lad, 4.2, 0.06, 0.05, -25.2, 2.42, 11.9);
     for (let x = -27; x <= -23.4; x += 0.45) mb.box(lad, 0.04, 0.04, 0.62, x, 2.42, 11.6);
     mb.flush(groups.mdf);
     const ib = new Batch();
-    const patI = ['rFiber', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rHm', 'rSwitch'];
+    const patI = ['rFiber', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm', 'rPanel', 'rHm', 'rSwitch', 'rHm'];
     rackFaces(ib, 'backbone', 27.0, 0.55, -Math.PI / 2, patI, 1.8, 0.14);
     rackFaces(ib, 'backbone', 27.0, -15.5, -Math.PI / 2, patI, 1.8, 0.14);
     ib.flush(groups.backbone);
@@ -390,10 +390,10 @@ export function create(canvas, options) {
     ladderZ(4.6, 10.5, -25.5, TRAY_Y);                 // over to the MDF
     tb.box(cT, 0.07, 5.4, 0.07, -25.82, 5.5, 10.5); tb.box(cT, 0.07, 5.4, 0.07, -25.18, 5.5, 10.5);   // riser down into the MDF
     for (let y = 3.2; y < TRAY_Y; y += 0.5) tb.box(cT, 0.64, 0.05, 0.06, -25.5, y, 10.5);
-    // J-hook runs over each aisle: a cable bundle in hooks every 2.4 m
+    // J-hook runs over each aisle: a cable bundle in hooks every 1.5 m (5 ft)
     AISLES.forEach((x) => {
       tb.box(cC, 0.2, 0.2, RZ1 - RZ0 + 7, x, TRAY_Y - 0.03, (RZ0 - 1 + 4.6) / 2);
-      for (let z = RZ0 - 0.6; z <= 4.4; z += 2.4) {
+      for (let z = RZ0 - 0.6; z <= 4.4; z += 1.5) {
         tb.box(cR, 0.05, TRUSS_Y - TRAY_Y - 0.2, 0.05, x, (TRUSS_Y + TRAY_Y) / 2 - 0.02, z);
         tb.box(cT, 0.5, 0.06, 0.08, x, TRAY_Y - 0.22, z); tb.box(cT, 0.06, 0.26, 0.08, x - 0.22, TRAY_Y - 0.1, z); tb.box(cT, 0.06, 0.26, 0.08, x + 0.22, TRAY_Y - 0.1, z);
         tb.box(cT, 0.14, 0.06, 0.08, x - 0.17, TRAY_Y + 0.04, z);
@@ -406,6 +406,7 @@ export function create(canvas, options) {
   /* ================= WIFI: high-bay access points above the aisles ================= */
   const apPoints = [];
   AISLES.forEach((x) => [-8, -1].forEach((z) => apPoints.push([x, z])));
+  [-12, 4].forEach((x) => apPoints.push([x, -15]));   // over the dock staging area
   {
     const wb = new Batch();
     const cA = M(0xf1f6f8, 'wifi', { glow: 0.2 }), cG = M(COL.wireless, 'wifi', { glow: 0.7 }), cD = M(0x2d3a42, 'wifi');
@@ -454,10 +455,10 @@ export function create(canvas, options) {
       b.box(cR, 0.22, 0.34, 0.08, 0, 0, 0.04); b.box(cL, 0.14, 0.05, 0.03, 0, 0.1, 0.095); b.box(cL, 0.08, 0.08, 0.03, 0, -0.04, 0.095);
       b.add(cHalo, new CircleGeometry(0.5, 24), 0, 0, 0.02);
     });
-    reader(23.3, 1.3, -D + 0.04, 0);                                    // back-wall man-door
-    reader(-W + 0.04, 1.3, -4.7, Math.PI / 2);                          // west-wall man-door
-    reader(W - 0.04, 1.3, -9.3, -Math.PI / 2);                          // east-wall man-door
-    reader(MDF.x1 + 0.1, 1.3, MDF.dz + 1.0, Math.PI / 2);                       // MDF door, outside face
+    reader(23.3, 1.1, -D + 0.04, 0);                                    // back-wall man-door
+    reader(-W + 0.04, 1.1, -4.7, Math.PI / 2);                          // west-wall man-door
+    reader(W - 0.04, 1.1, -9.3, -Math.PI / 2);                          // east-wall man-door
+    reader(MDF.x1 + 0.1, 1.1, MDF.dz + 1.0, Math.PI / 2);                       // MDF door, outside face
     ab.flush(groups.access);
   }
 
