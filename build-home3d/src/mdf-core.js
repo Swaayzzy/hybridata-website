@@ -1,4 +1,4 @@
-/* How We Build, Concept B: "How our MDFs are built". One generic, unbranded 42U four-post rack, built in code: no model file,
+/* How We Build, Concept B: "How our MDFs are built". One generic, unbranded 42U four-post rack, built in code: no 3D asset file,
    no textures, no HDRI. Flat vector look: plain coloured faces, soft light, one blurred floor shadow.
    Every part belongs to a build step (1..8); `setState(step)` shows the parts up to that step and glides the camera.
    Render on demand: frames are drawn only while something moves.
@@ -296,7 +296,7 @@ export function create(canvas, options) {
     cordMeshes.forEach((m) => { m.visible = ct > 0.001; m.geometry.setDrawRange(0, Math.floor((m.userData.total * ct) / 3) * 3); });
     labelsGroup.visible = cordPart.t > 0.98;
     const bt = ease(testPart.t);
-    badge.scale.setScalar(0.0001 + bt * 0.34);
+    badge.scale.setScalar(0.0001 + bt * cam.dist * 0.082);   // constant size on screen
     badge.visible = bt > 0.001;
   }
   function frameTick(now) {
