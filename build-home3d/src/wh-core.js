@@ -1,48 +1,53 @@
-/* How We Build, Concept A: one large open warehouse / distribution building, built in code (no 3D asset file, no textures,
-   no HDRI). Flat vector look: plain coloured faces, soft light, baked soft contact shadows. The building has no roof and no front wall
-   (walls are single-sided and face inward), so the camera always looks in; walls between the camera and the room simply vanish.
+/* How We Build, v4 warehouse: an empty building shell where the cabling systems are the only content. Built in code (no 3D asset
+   file, no textures, no HDRI). Flat vector look: plain coloured faces, soft light. The shell has no roof and no front wall (walls are
+   single-sided and face inward), so the camera always looks in; walls between the camera and the room simply vanish.
    Systems (fiber, MDF, backbone, tray, wifi, cams, access) are separate groups. `setState(step)` shows the systems up to that step,
-   highlights the current one, dims the rest and glides the camera. Render on demand: frames are drawn only while something moves.
+   highlights the current one, dims the rest and glides the camera to that step's own pose (eased, about 1 s; a cut under reduced motion).
+   Render on demand: frames are drawn only while something moves.
    This file touches no DOM: it draws into the canvas it is given (a transferred OffscreenCanvas inside a worker, or a normal
    canvas on the page) and takes size and pointer input as calls. */
 import {
   WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, MeshLambertMaterial, MeshBasicMaterial, BoxGeometry, CylinderGeometry,
   SphereGeometry, CircleGeometry, PlaneGeometry, ShapeGeometry, Shape, Path, HemisphereLight, DirectionalLight, CanvasTexture,
-  SRGBColorSpace, Color, Vector3, Matrix4, Quaternion, Euler, InstancedMesh, Sprite, SpriteMaterial
+  SRGBColorSpace, Color, Vector3, Matrix4, Quaternion, Euler, Sprite, SpriteMaterial, BufferGeometry, Float32BufferAttribute, DoubleSide
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /* ---------- layout (metres; x east, z toward the viewer, y up) ---------- */
 const W = 28, D = 18, H = 9.6;                       // half width, half depth, wall height
 const DOCKS = [-20, -12, -4, 4, 12];                 // dock roll-up doors on the back wall
-const ROWS = [-17.5, -10.5, -3.5, 3.5, 10.5];        // racking rows (run along z)
-const AISLES = [-14, -7, 0, 7];                      // aisle centre lines between the rows
-const RZ0 = -12.2, BAY = 2.4, BAYS = 6;              // racking z start, bay length, bays per row
-const RZ1 = RZ0 + BAY * BAYS;
-const BEAMS = [1.5, 3.0, 4.5, 6.0];                  // beam heights
 const TRAY_Y = 8.2, TRUSS_Y = 9.0;
-const MAN_DOORS = [                                  // [wall, position along it]
-  { wall: 'back', x: 22 }, { wall: 'west', z: -6 }, { wall: 'east', z: -8 }
-];
+const HOOK = 1.5;                                    // J-hook spacing, 1.5 m (5 ft)
+const AP_Y = 7.4;                                    // high-bay access point height
+const AP_X = [-20, -2, 16], AP_Z = [-9, 9];          // 6 access points, 18 m (59 ft) apart both ways
+const READER_Y = 1.1;                                // card reader height
 const MDF = { x0: -28, x1: -21, z0: 11, z1: 18, h: 3.6, dz: 14.5 };   // MDF room, door centre z
 
-/* systems: the step each first appears on, and the step that highlights it */
-const SYS_STEP = { base: 0, fiber: 2, mdf: 3, backbone: 4, tray: 5, wifi: 6, cams: 7, access: 8 };
-const STEP_SYS = { 2: 'fiber', 3: 'mdf', 4: 'backbone', 5: 'tray', 6: 'wifi', 7: 'cams', 8: 'access' };
-const STEPS = 9;
+/* systems: the step each first appears on. Overlays (the Wi-Fi coverage hint, the camera views) show on their own step only. */
+const SYS_STEP = { base: 0, roof: 0, fiber: 2, mdf: 2, backbone: 3, tray: 4, wifi: 4, cams: 4, access: 4, wifiCov: 5, camCone: 6 };
+const STEP_SYS = { 2: ['fiber', 'mdf'], 3: ['backbone'], 4: ['tray'], 5: ['wifi', 'wifiCov'], 6: ['cams', 'camCone'], 7: ['access'] };
+const DEVICES = { wifi: 1, cams: 1, access: 1 };   // shown (dimmed) on the tray step as the things the drops feed
+const STEPS = 8;
 const COL = {   // site palette (stage.css) for the systems; Field Ops RACK_COL for the rack gear
   fiber: 0x53c3df, cabling: 0xe0a85a, wireless: 0x7fe3a0, surveillance: 0xc79bff, access: 0xff9a6b,
   rFiber: 0x7d55c7, rHm: 0x39424c, rPanel: 0x2f6fb0, rSwitch: 0x1f8a5b, rFw: 0xa3424a, rUps: 0xb5651d
 };
 const DARK = new Color(0x0b1419);
 
-/* camera poses: [target x, y, z, distance, azimuth deg, elevation deg] */
+/* camera poses, one per step: t = target [x, y, z], d = distance (m), az / el = degrees. `fit` poses show the whole building,
+   so their distance is fitted to the canvas's aspect; `nar` backs the others off on a squarer canvas (phones). */
 const POSE = {
-  1: [-5, 0, 7, 112, 8, 38], 2: [-22, 0, 26, 40, 22, 32], 3: [-24.5, 1.2, 14.5, 15, -8, 36], 4: [3, 3, 3, 78, 4, 52],
-  5: [-4, 6, 0, 56, 14, 40], 6: [-3, 4, -2, 42, 12, 46], 7: [0, 3, -4, 62, 4, 44], 8: [-3, 0, 4, 104, 10, 40], 9: [-5, 0, 7, 112, 8, 38]
+  1: { t: [0, 3.8, 0], d: 100, az: 30, el: 38, fit: 1 },                  // high 3/4 isometric, roof removed
+  2: { t: [-24.5, 2.4, 15], d: 27, az: 38, el: 9, nar: 1.3 },                        // low, at the entrance wall: conduit in, MDF door and room
+  3: { t: [0, 4, 1], d: 80, az: 6, el: 22, fit: 1 },                      // cutaway along the backbone, MDF to IDFs
+  4: { t: [-3, 7.4, -2], d: 36, az: 26, el: -8, nar: 1.3 },                         // from below, up and along the tray and J-hook runs
+  5: { t: [0, 0, 0], d: 90, az: 0, el: 86, fit: 1 },                      // top-down plan
+  6: { t: [-4, 2.5, -9], d: 50, az: 52, el: 26, nar: 1.3 },                         // corner view of the camera views
+  7: { t: [18.6, 1.3, -17.96], d: 11, az: 14, el: 1.6 },                   // eye level (about 1.6 m) at a door, reader at 1.1 m
+  8: { t: [0, 3.8, 0], d: 100, az: 30, el: 38, fit: 1 }                   // back to the overview, everything on
 };
-const LIMIT = { el: [7, 84], dist: [16, 320] };
-const WHOLE = { 1: 1, 8: 1, 9: 1 };   // poses that show the whole building: their distance is fitted to the canvas's aspect
+const LIMIT = { el: [-10, 86], dist: [8, 320] };
+const GLIDE = 1.0;   // seconds
 
 const mkCanvas = (w, h) => (typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h }));
 const raf = (f) => (self.requestAnimationFrame ? self.requestAnimationFrame(f) : setTimeout(() => f(performance.now()), 16));
@@ -141,11 +146,11 @@ export function create(canvas, options) {
     const g = new ShapeGeometry(s); g.rotateX(-Math.PI / 2); return g;
   };
 
-  /* ================= BASE: ground, building, racking, mezzanine, docks, closets ================= */
+  /* ================= BASE: ground, shell, doors, MDF room and IDF closets (nothing else on the floor) ================= */
   const bb = new Batch();
-  const cGround = M(0x0c151a, 'base'), cSlab = M(0x35495a, 'base'), cJoint = M(0x1c2a32, 'base'), cLine = M(0x8a7a3e, 'base');
+  const cGround = M(0x0c151a, 'base'), cSlab = M(0x35495a, 'base'), cJoint = M(0x1c2a32, 'base');
   const cWall = M(0x4a6479, 'base'), cCap = M(0x86a3b6, 'base'), cPlinth = M(0x5d788b, 'base');
-  const cAsphalt = M(0x172630, 'base'), cWalk = M(0x2a3a45, 'base'), cMark = M(0x56707f, 'base'), cYellow = M(0x9a8639, 'base');
+  const cAsphalt = M(0x172630, 'base'), cWalk = M(0x2a3a45, 'base');
   const cSteel = M(0x7f909c, 'base'), cDoor = M(0xaab8c1, 'base'), cSlat = M(0x8a9aa5, 'base'), cBlack = M(0x1b242a, 'base');
   const cFrame = M(0x2b3942, 'base');
 
@@ -153,27 +158,10 @@ export function create(canvas, options) {
   bb.box(cSlab, 2 * W + 1.2, 0.3, 2 * D + 1.2, 0, -0.15, 0);
   for (let x = -21; x <= 21; x += 7) bb.box(cJoint, 0.06, 0.012, 2 * D, x, 0.008, 0);
   for (let z = -12; z <= 12; z += 6) bb.box(cJoint, 2 * W, 0.012, 0.06, 0, 0.008, z);
-  for (const a of AISLES) for (const s of [-1, 1]) bb.box(cLine, 0.14, 0.014, BAY * BAYS + 1, a + s * 2.0, 0.012, (RZ0 + RZ1) / 2);
-  bb.box(cLine, 2 * W - 4, 0.014, 0.14, 0, 0.012, -13.2);
-  // lot and street on the front side
+  // apron, sidewalk and street on the front side (flat; the fiber comes in from the street)
   bb.box(cAsphalt, 90, 0.1, 15, 4, -0.04, 27);
-  for (let x = -14; x <= 34; x += 4.5) bb.box(cMark, 0.14, 0.012, 4.2, x, 0.02, 24.5);
   bb.box(cWalk, 300, 0.12, 2.4, 0, -0.04, 34.6);
   bb.box(cAsphalt, 300, 0.1, 13, 0, -0.05, 42);
-  for (let x = -70; x <= 70; x += 7) bb.box(cYellow, 3, 0.012, 0.24, x, 0.02, 42);
-  // cars in the lot (flat silhouettes, for scale)
-  const carCols = [0x56707f, 0x9aa7b0, 0x3d5a73, 0x7b8790, 0x6a5a58, 0x4d6b61];
-  [-9.2, -4.7, 4.3, 8.8, 17.8, 22.3].forEach((x, i) => {
-    const c = M(carCols[i % carCols.length], 'base');
-    bb.box(c, 1.8, 0.7, 4.4, x, 0.55, 24.6); bb.box(M(0x1d2a31, 'base'), 1.5, 0.5, 2.2, x, 1.15, 24.4);
-    shadow(2.8, 5.4, x, 24.6);
-  });
-  // trailers backed against the rear docks (seen when the building is turned around)
-  [-12, 4].forEach((x) => {
-    bb.box(M(0xcfd8dd, 'base'), 2.7, 3.3, 12.5, x, 2.8, -D - 7.2);
-    bb.box(cBlack, 2.5, 0.35, 12.2, x, 1.0, -D - 7.2);
-    for (const wz of [-D - 11, -D - 12.3]) for (const s of [-1, 1]) bb.cyl(cBlack, 0.55, 0.3, x + s * 1.3, 0.6, wz, 0, 0, Math.PI / 2, 14);
-  });
 
   // walls: single-sided planes facing inward, with openings. Seen from outside they are invisible.
   function wall(len, rotY, px, pz, holes) {
@@ -184,7 +172,7 @@ export function create(canvas, options) {
     const m = new Mesh(g, cWall); groups.base.add(m);
   }
   const manHole = (v) => [v - 0.6, 0, v + 0.6, 2.4];
-  wall(2 * W, 0, 0, -D, DOCKS.map((x) => [x - 1.7, 0, x + 1.7, 4.4]).concat([manHole(22)]));
+  wall(2 * W, 0, 0, -D, DOCKS.map((x) => [x - 1.7, 0, x + 1.7, 4.4]).concat([manHole(18)]));
   wall(2 * D, Math.PI / 2, -W, 0, [manHole(6)]);          // west wall: local x = -z
   wall(2 * D, -Math.PI / 2, W, 0, [manHole(-8)]);         // east wall: local x = +z
   wall(2 * W, Math.PI, 0, D, []);                         // front wall (never seen from the front)
@@ -195,103 +183,20 @@ export function create(canvas, options) {
   for (let x = -W + 4; x < W; x += 8) bb.box(M(0x3d566a, 'base'), 0.5, H, 0.3, x, H / 2, -D + 0.15);   // pilasters on the back wall
   for (let z = -D + 4; z < D; z += 8) { bb.box(M(0x3d566a, 'base'), 0.3, H, 0.5, -W + 0.15, H / 2, z); bb.box(M(0x3d566a, 'base'), 0.3, H, 0.5, W - 0.15, H / 2, z); }
 
-  // dock doors: closed roll-ups with bumpers and a leveler plate
+  // dock doors: closed roll-ups (no bumpers, levelers or trailers)
   DOCKS.forEach((x) => {
     bb.box(cFrame, 3.7, 0.3, 0.3, x, 4.55, -D + 0.12);
     bb.box(cFrame, 0.22, 4.4, 0.3, x - 1.78, 2.2, -D + 0.12); bb.box(cFrame, 0.22, 4.4, 0.3, x + 1.78, 2.2, -D + 0.12);
     bb.box(cDoor, 3.4, 4.3, 0.1, x, 2.15, -D + 0.06);
     for (let k = 0; k < 7; k++) bb.box(cSlat, 3.4, 0.07, 0.14, x, 0.45 + k * 0.6, -D + 0.12);
-    bb.box(cSteel, 2.8, 0.1, 1.5, x, 0.06, -D + 0.9);
-    for (const s of [-1, 1]) bb.box(cBlack, 0.3, 0.55, 0.3, x + s * 1.55, 1.2, -D + 0.25);
   });
-  // man-doors
+  // man-doors (the back-wall one sits at x = 18, clear of the IDF 2 closet)
   const manDoor = (x, y, z, ry) => bb.at(x, y, z, ry, 1, (b) => {
     b.box(cFrame, 1.4, 0.18, 0.2, 0, 2.43, 0); b.box(cFrame, 0.16, 2.4, 0.2, -0.64, 1.2, 0); b.box(cFrame, 0.16, 2.4, 0.2, 0.64, 1.2, 0);
     b.box(M(0x8aa0ae, 'base'), 1.12, 2.3, 0.08, 0, 1.15, 0.04);
     b.box(cBlack, 0.06, 0.4, 0.1, 0.4, 1.0, 0.12);
   });
-  manDoor(22, 0, -D + 0.1, 0); manDoor(-W + 0.1, 0, -6, Math.PI / 2); manDoor(W - 0.1, 0, -8, -Math.PI / 2);
-
-  // racking: blue uprights, orange beams, pallets (instanced)
-  const cUp = M(0x3b79b3, 'base'), cBeam = M(0xd9873a, 'base');
-  const rand = rng(11);
-  const pallets = [];
-  const palCols = [0xb48f5a, 0xa9854f, 0xc9a56a, 0x9fb0ba, 0xc5d1d8, 0x4f7ea8, 0xb48f5a, 0xd8dde0];
-  ROWS.forEach((xc) => {
-    for (let i = 0; i <= BAYS; i++) for (const dx of [-1.3, -0.1, 0.1, 1.3]) bb.box(cUp, 0.1, 6.3, 0.1, xc + dx, 3.15, RZ0 + i * BAY);
-    for (const y of BEAMS) for (const dx of [-1.3, -0.1, 0.1, 1.3]) bb.box(cBeam, 0.07, 0.14, BAY * BAYS, xc + dx, y, (RZ0 + RZ1) / 2);
-    for (const dx of [-0.7, 0.7]) for (const y of BEAMS) bb.box(M(0x24323b, 'base'), 1.06, 0.03, BAY * BAYS, xc + dx, y + 0.07, (RZ0 + RZ1) / 2);   // decking
-    for (let i = 0; i < BAYS; i++) for (const sx of [-1, 1]) BEAMS.forEach((y, l) => {
-      for (const h of [0.6, 1.8]) {
-        if (rand() > 0.8) continue;
-        const hh = 0.8 + rand() * 0.55;
-        pallets.push([xc + sx * 0.7, y + 0.14 + 0.07 + hh / 2, RZ0 + i * BAY + h, 0.98, hh, 1.0, palCols[(rand() * palCols.length) | 0]]);
-      }
-    });
-    shadow(2.6 + 2.6, BAY * BAYS + 2.6, xc, (RZ0 + RZ1) / 2);
-  });
-  {
-    const pm = new InstancedMesh(new BoxGeometry(1, 1, 1), M(0xffffff, 'base'), pallets.length);
-    const d = new Matrix4();
-    pallets.forEach((p, i) => {
-      d.compose(_p.set(p[0], p[1], p[2]), _q.identity(), _s.set(p[3], p[4], p[5]));
-      pm.setMatrixAt(i, d); pm.setColorAt(i, new Color(p[6]));
-    });
-    pm.instanceMatrix.needsUpdate = true; pm.instanceColor.needsUpdate = true;
-    groups.base.add(pm);
-  }
-  // loose pallets staged in front of the dock doors, and two forklifts
-  [[-23, -15.2], [-21.5, -15.2], [-14, -14.6], [-9.5, -15.4], [-0.5, -15], [7.5, -14.8], [9, -14.8], [15, -15.4]].forEach(([x, z], i) => {
-    bb.box(M(0x4a3b2a, 'base'), 1.1, 0.14, 1.1, x, 0.08, z);
-    bb.box(M(palCols[i % palCols.length], 'base'), 1.0, 0.9 + (i % 3) * 0.3, 1.0, x, 0.15 + (0.9 + (i % 3) * 0.3) / 2, z);
-    shadow(1.8, 1.8, x, z);
-  });
-  const forklift = (x, z, ry) => { bb.at(x, 0, z, ry, 1, (b) => {
-    const y = M(0xd9a441, 'base');
-    b.box(y, 1.1, 0.8, 1.9, 0, 0.7, 0); b.box(cBlack, 1.1, 0.4, 0.6, 0, 0.55, -0.9);
-    for (const sx of [-1, 1]) { b.box(cBlack, 0.05, 1.7, 0.05, sx * 0.5, 1.7, 0.55); b.box(cBlack, 0.05, 1.7, 0.05, sx * 0.5, 1.7, -0.5); }
-    b.box(y, 1.1, 0.06, 1.2, 0, 2.55, 0.05);
-    b.box(cBlack, 0.8, 2.4, 0.1, 0, 1.4, 1.15);
-    for (const sx of [-0.3, 0.3]) b.box(cSteel, 0.12, 0.06, 1.2, sx, 0.12, 1.75);
-    for (const sx of [-1, 1]) for (const sz of [-0.6, 0.6]) b.cyl(cBlack, 0.3, 0.2, sx * 0.55, 0.3, sz, 0, 0, Math.PI / 2, 12);
-  }); shadow(2.4, 3.6, x, z); };
-  forklift(-3.6, -12.8, 0.3); forklift(-24.5, -4, -0.6);
-
-  // roof trusses (the roof itself is left off so the room can be seen)
-  const cTruss = M(0x3f5362, 'base');
-  [-15, -9, -3, 3, 9, 15].forEach((z) => {
-    bb.box(cTruss, 2 * W, 0.22, 0.22, 0, 9.55, z); bb.box(cTruss, 2 * W, 0.18, 0.18, 0, TRUSS_Y, z);
-    for (let x = -W + 2; x <= W - 2; x += 2) { bb.box(cTruss, 0.1, 0.55, 0.1, x, 9.28, z); }
-  });
-  // diagonals as thin rotated boxes
-  {
-    const ang = Math.atan2(0.55, 2);
-    [-15, -9, -3, 3, 9, 15].forEach((z) => { for (let x = -W + 2; x < W - 2; x += 4) {
-      bb.add(cTruss, new BoxGeometry(2.1, 0.08, 0.08), x + 1, 9.28, z, 0, 0, ang);
-      bb.add(cTruss, new BoxGeometry(2.1, 0.08, 0.08), x + 3, 9.28, z, 0, 0, -ang);
-    } });
-  }
-
-  // mezzanine and office
-  const cDeck = M(0x4a5f6e, 'base'), cRail = M(0xd9a441, 'base'), cGlass = M(0x7fb7d6, 'base', { alpha: 0.26 }), cMull = M(0x2d3c46, 'base');
-  bb.box(cDeck, 16, 0.3, 12, 20, 3.45, 12); bb.box(cFrame, 16.2, 0.2, 12.2, 20, 3.2, 12);
-  for (const x of [13, 20, 27]) for (const z of [7, 17]) bb.box(cFrame, 0.32, 3.3, 0.32, x, 1.65, z);
-  shadow(19, 15, 20, 12, 0.025);
-  for (let z = 6.2; z <= 17.9; z += 1.95) if (z < 8 || z > 9.6) bb.box(cRail, 0.07, 1.0, 0.07, 12.1, 4.1, z);
-  bb.box(cRail, 0.06, 0.06, 12, 12.1, 4.6, 12); bb.box(cRail, 0.05, 0.05, 12, 12.1, 4.35, 12);
-  for (let x = 12.1; x <= 28; x += 1.99) bb.box(cRail, 0.07, 1.0, 0.07, x, 4.1, 6.1);
-  bb.box(cRail, 16, 0.06, 0.06, 20, 4.6, 6.1); bb.box(cRail, 16, 0.05, 0.05, 20, 4.35, 6.1);
-  for (let k = 0; k < 20; k++) { const h = (k + 1) * 0.18; bb.box(cSteel, 0.29, h, 1.2, 6.3 + k * 0.29, h / 2, 8.6); }
-  bb.add(cRail, new BoxGeometry(6.4, 0.06, 0.06), 9.1, 2.35, 7.95, 0, 0, Math.atan2(3.4, 5.8));
-  // office on the deck: glass on the two visible sides, desks inside
-  bb.box(cGlass, 0.06, 2.8, 10, 15, 5.0, 13); bb.box(cGlass, 13, 2.8, 0.06, 21.5, 5.0, 8);
-  for (let z = 8; z <= 18; z += 2) bb.box(cMull, 0.1, 2.8, 0.1, 15, 5.0, z);
-  for (let x = 15; x <= 28; x += 2.6) bb.box(cMull, 0.1, 2.8, 0.1, x, 5.0, 8);
-  bb.box(cMull, 0.12, 0.12, 10, 15, 6.4, 13); bb.box(cMull, 13, 0.12, 0.12, 21.5, 6.4, 8);
-  [[18, 11], [18, 15], [23, 11], [23, 15], [26.6, 13]].forEach(([x, z]) => {
-    bb.box(M(0x6b7d89, 'base'), 1.7, 0.08, 0.85, x, 4.35, z); bb.box(cBlack, 0.5, 0.35, 0.05, x, 4.7, z - 0.2);
-    bb.box(cBlack, 0.5, 0.5, 0.5, x, 3.9, z + 0.85);
-  });
+  manDoor(18, 0, -D + 0.1, 0); manDoor(-W + 0.1, 0, -6, Math.PI / 2); manDoor(W - 0.1, 0, -8, -Math.PI / 2);
 
   // MDF room (open front and top) and IDF closets
   const cRoom = M(0x58758a, 'base'), cRoomFloor = M(0x4a6577, 'base'), cBoard = M(0x8b7650, 'base');
@@ -320,6 +225,23 @@ export function create(canvas, options) {
   shadow(MDF.x1 - MDF.x0 + 3, MDF.z1 - MDF.z0 + 3, (MDF.x0 + MDF.x1) / 2, (MDF.z0 + MDF.z1) / 2, 0.035);
 
   bb.flush(groups.base);
+
+  // roof trusses (the roof itself is left off): shown only where a view needs them, for the J-hooks to hang from
+  {
+    const rb = new Batch();
+    const cTruss = M(0x3f5362, 'roof');
+    const TZ = [-15, -9, -3, 3, 9, 15];
+    TZ.forEach((z) => {
+      rb.box(cTruss, 2 * W, 0.22, 0.22, 0, 9.55, z); rb.box(cTruss, 2 * W, 0.18, 0.18, 0, TRUSS_Y, z);
+      for (let x = -W + 2; x <= W - 2; x += 2) rb.box(cTruss, 0.1, 0.55, 0.1, x, 9.28, z);
+    });
+    const ang = Math.atan2(0.55, 2);
+    TZ.forEach((z) => { for (let x = -W + 2; x < W - 2; x += 4) {
+      rb.add(cTruss, new BoxGeometry(2.1, 0.08, 0.08), x + 1, 9.28, z, 0, 0, ang);
+      rb.add(cTruss, new BoxGeometry(2.1, 0.08, 0.08), x + 3, 9.28, z, 0, 0, -ang);
+    } });
+    rb.flush(groups.roof);
+  }
 
   /* ================= MDF racks (system "mdf") and IDF racks (system "backbone") ================= */
   const rackFaces = (b, sys, x, z, ry, pattern, rackH, unitH) => {
@@ -371,7 +293,8 @@ export function create(canvas, options) {
     kb.flush(groups.backbone);
   }
 
-  /* ================= TRAY and J-HOOKS ================= */
+  /* ================= TRAY and J-HOOKS: trunk tray, hooked runs, a drop to every device ================= */
+  const WALL_RUN_Z = -D + 0.6, WALL_RUN_XW = -W + 0.6, WALL_RUN_XE = W - 0.6;
   {
     const tb = new Batch();
     const cT = M(0xc99a55, 'tray', { glow: 0.45 }), cC = M(0xffd18a, 'tray', { glow: 0.5 }), cR = M(0x9aa7b0, 'tray');
@@ -386,95 +309,124 @@ export function create(canvas, options) {
       for (let z = z0 + 0.3; z < z1; z += 0.5) tb.box(cT, 0.64, 0.05, 0.06, x, y - 0.03, z);
       tb.box(cC, 0.4, 0.1, z1 - z0, x, y + 0.02, (z0 + z1) / 2);
     };
-    ladderX(-25.5, 15.5, 4.6, TRAY_Y);                 // trunk along the front of the racking
+    ladderX(-25.5, 15.5, 4.6, TRAY_Y);                 // trunk along the middle of the building
     ladderZ(4.6, 10.5, -25.5, TRAY_Y);                 // over to the MDF
     tb.box(cT, 0.07, 5.4, 0.07, -25.82, 5.5, 10.5); tb.box(cT, 0.07, 5.4, 0.07, -25.18, 5.5, 10.5);   // riser down into the MDF
     for (let y = 3.2; y < TRAY_Y; y += 0.5) tb.box(cT, 0.64, 0.05, 0.06, -25.5, y, 10.5);
-    // J-hook runs over each aisle: a cable bundle in hooks every 1.5 m (5 ft)
-    AISLES.forEach((x) => {
-      tb.box(cC, 0.2, 0.2, RZ1 - RZ0 + 7, x, TRAY_Y - 0.03, (RZ0 - 1 + 4.6) / 2);
-      for (let z = RZ0 - 0.6; z <= 4.4; z += 1.5) {
-        tb.box(cR, 0.05, TRUSS_Y - TRAY_Y - 0.2, 0.05, x, (TRUSS_Y + TRAY_Y) / 2 - 0.02, z);
+    // J-hook runs: a cable bundle in a hook every 1.5 m (5 ft). Along z at x (hung from the trusses), along x at z or against a wall.
+    const hookZ = (x, za, zb, wallX) => {
+      const lo = Math.min(za, zb), hi = Math.max(za, zb);
+      tb.box(cC, 0.2, 0.2, hi - lo, x, TRAY_Y - 0.03, (lo + hi) / 2);
+      for (let z = za; za < zb ? z <= zb + 0.01 : z >= zb - 0.01; z += za < zb ? HOOK : -HOOK) {
+        if (wallX === undefined) tb.box(cR, 0.05, TRUSS_Y - TRAY_Y - 0.2, 0.05, x, (TRUSS_Y + TRAY_Y) / 2 - 0.02, z);
+        else tb.box(cR, 0.5, 0.05, 0.05, x + (wallX < 0 ? -0.25 : 0.25), TRAY_Y - 0.22, z);
         tb.box(cT, 0.5, 0.06, 0.08, x, TRAY_Y - 0.22, z); tb.box(cT, 0.06, 0.26, 0.08, x - 0.22, TRAY_Y - 0.1, z); tb.box(cT, 0.06, 0.26, 0.08, x + 0.22, TRAY_Y - 0.1, z);
         tb.box(cT, 0.14, 0.06, 0.08, x - 0.17, TRAY_Y + 0.04, z);
       }
+    };
+    const hookX = (z, xa, xb) => {
+      const lo = Math.min(xa, xb), hi = Math.max(xa, xb);
+      tb.box(cC, hi - lo, 0.2, 0.2, (lo + hi) / 2, TRAY_Y - 0.03, z);
+      for (let x = xa; x <= xb + 0.01; x += HOOK) {
+        tb.box(cR, 0.05, 0.05, 0.5, x, TRAY_Y - 0.22, z - 0.25);
+        tb.box(cT, 0.08, 0.06, 0.5, x, TRAY_Y - 0.22, z); tb.box(cT, 0.08, 0.26, 0.06, x, TRAY_Y - 0.1, z - 0.22); tb.box(cT, 0.08, 0.26, 0.06, x, TRAY_Y - 0.1, z + 0.22);
+        tb.box(cT, 0.08, 0.06, 0.14, x, TRAY_Y + 0.04, z - 0.17);
+      }
+    };
+    AP_X.forEach((x) => {
+      hookZ(x, 4.6, AP_Z[0]);                           // trunk to the back row of access points
+      hookZ(x, 4.6, AP_Z[1]);                           // trunk to the front row
       tb.box(cT, 0.5, 0.06, 0.4, x, TRAY_Y - 0.22, 4.6);
     });
+    hookZ(AP_X[0], AP_Z[0], WALL_RUN_Z);                // on to the back wall
+    hookX(WALL_RUN_Z, WALL_RUN_XW, WALL_RUN_XE);        // along the back wall: cameras and the back door
+    hookZ(WALL_RUN_XW, WALL_RUN_Z, -4.7, -1);           // down the west wall to its door
+    hookZ(WALL_RUN_XE, WALL_RUN_Z, -9.3, 1);            // down the east wall to its door
+    // drops: a cable from the run to each device
+    const cableDrop = (x, y0, y1, z) => tb.box(cC, 0.09, y0 - y1, 0.09, x, (y0 + y1) / 2, z);
+    AP_X.forEach((x) => AP_Z.forEach((z) => cableDrop(x, TRAY_Y - 0.1, AP_Y + 0.5, z)));
+    [-16, -8, 0, 8].forEach((x) => cableDrop(x, TRAY_Y - 0.1, 5.7, WALL_RUN_Z));
+    cableDrop(19.3, TRAY_Y - 0.1, READER_Y + 0.3, -D + 0.12);
+    cableDrop(-W + 0.12, TRAY_Y - 0.1, READER_Y + 0.3, -4.7);
+    cableDrop(W - 0.12, TRAY_Y - 0.1, READER_Y + 0.3, -9.3);
     tb.flush(groups.tray);
   }
 
-  /* ================= WIFI: high-bay access points above the aisles ================= */
-  const apPoints = [];
-  AISLES.forEach((x) => [-8, -1].forEach((z) => apPoints.push([x, z])));
-  [-12, 4].forEach((x) => apPoints.push([x, -15]));   // over the dock staging area
+  /* ================= WIFI: 6 high-bay access points in an even grid; the coverage hint is a separate, step-only group ================= */
   {
     const wb = new Batch();
     const cA = M(0xf1f6f8, 'wifi', { glow: 0.2 }), cG = M(COL.wireless, 'wifi', { glow: 0.7 }), cD = M(0x2d3a42, 'wifi');
-    const cov = M(COL.wireless, 'wifi', { alpha: 0.2, basic: true, map: discTex });
-    const cone = M(COL.wireless, 'wifi', { alpha: 0.07, basic: true });
-    apPoints.forEach(([x, z]) => {
-      const y = 7.4;
-      wb.box(cD, 0.04, TRAY_Y - 0.25 - y, 0.04, x, (TRAY_Y - 0.25 + y) / 2, z);
-      wb.cyl(cA, 0.62, 0.22, x, y, z, 0, 0, 0, 20);
-      wb.cyl(cG, 0.64, 0.07, x, y - 0.08, z, 0, 0, 0, 20);
-      wb.add(cA, new CylinderGeometry(0.3, 0.46, 0.22, 16), x, y + 0.2, z);
-      for (const s of [-1, 1]) { wb.box(cD, 0.07, 0.55, 0.07, x + s * 0.55, y + 0.32, z, 0); }
-      wb.add(cov, new CircleGeometry(5.2, 40), x, 0.07, z, -Math.PI / 2, 0, 0);
-      wb.add(cone, new CylinderGeometry(0.5, 5.2, y, 28, 1, true), x, y / 2, z);
-    });
+    AP_X.forEach((x) => AP_Z.forEach((z) => {
+      wb.box(cD, 0.05, TRAY_Y - 0.5 - AP_Y, 0.05, x, (TRAY_Y - 0.5 + AP_Y) / 2, z);
+      wb.at(x, AP_Y, z, 0, 1.8, (b) => {   // drawn about 1.8x life size so it reads from across the building
+        b.cyl(cA, 0.62, 0.22, 0, 0, 0, 0, 0, 0, 20);
+        b.cyl(cG, 0.64, 0.07, 0, -0.08, 0, 0, 0, 0, 20);
+        b.add(cA, new CylinderGeometry(0.3, 0.46, 0.22, 16), 0, 0.2, 0);
+      });
+    }));
     wb.flush(groups.wifi);
+    const cb = new Batch();
+    const cov = M(COL.wireless, 'wifiCov', { alpha: 0.2, basic: true, map: discTex });
+    AP_X.forEach((x) => AP_Z.forEach((z) => cb.add(cov, new CircleGeometry(11, 48), x, 0.07, z, -Math.PI / 2, 0, 0)));
+    cb.flush(groups.wifiCov);
   }
 
-  /* ================= CAMERAS: dock doors and aisle ends ================= */
+  /* ================= CAMERAS: along the back wall; each camera's view is a faint wedge (separate, step-only group) ================= */
   {
     const cb = new Batch();
     const cP = M(COL.surveillance, 'cams', { glow: 0.55 }), cBody = M(0xe9e4f3, 'cams', { glow: 0.2 }), cLens = M(0x1a1426, 'cams');
-    const fan = M(COL.surveillance, 'cams', { alpha: 0.22, basic: true });
-    const cam = (x, y, z, ry, tilt) => cb.at(x, y, z, ry, 1.7, (b) => {   // drawn about 1.7x life size so it reads at a distance
+    const cam = (x, y, z, ry) => cb.at(x, y, z, ry, 1.7, (b) => {   // drawn about 1.7x life size so it reads at a distance
       b.box(cBody, 0.34, 0.3, 0.8, 0, 0, 0.1); b.box(cP, 0.36, 0.1, 0.5, 0, 0.18, 0.05);
       b.ball(cLens, 0.17, 0, -0.02, 0.52); b.box(cP, 0.2, 0.2, 0.06, 0, -0.02, 0.5);
     });
-    [-16, -8, 0, 8].forEach((x) => {   // on the back wall, covering the docks
+    const vb = new Batch();
+    const fan = M(COL.surveillance, 'camCone', { alpha: 0.2, basic: true });
+    const wedgeMat = M(COL.surveillance, 'camCone', { alpha: 0.07, basic: true });
+    wedgeMat.side = DoubleSide;
+    [-16, -8, 0, 8].forEach((x) => {
       cb.box(cLens, 0.12, 0.5, 0.5, x, 5.55, -D + 0.3);
       cam(x, 5.3, -D + 0.9, 0);
-      cb.add(fan, floorShape([[x, -D + 0.5], [x - 7.4, -D + 9.5], [x + 7.4, -D + 9.5]]), 0, 0.075, 0);
-    });
-    AISLES.forEach((x) => {            // on a drop from the roof, at the aisle ends, looking down the aisle
-      cb.box(cLens, 0.12, TRUSS_Y - 6.8, 0.12, x, (TRUSS_Y + 6.8) / 2, 4.5);
-      cam(x, 6.6, 4.4, Math.PI);
-      cb.add(fan, floorShape([[x, 4.3], [x - 2.6, RZ0 - 0.5], [x + 2.6, RZ0 - 0.5]]), 0, 0.075, 0);
+      // view: a wedge from the lens to a trapezoid on the floor, 3.2 m to 12 m out from the wall
+      const ax = x, ay = 5.3, az = -D + 0.9, n0 = -D + 3.2, n1 = -D + 12, w0 = 1.6, w1 = 4.2;
+      vb.add(fan, floorShape([[x - w0, n0], [x + w0, n0], [x + w1, n1], [x - w1, n1]]), 0, 0.075, 0);
+      const g = new BufferGeometry();
+      g.setAttribute('position', new Float32BufferAttribute([ax, ay, az, x - w0, 0.08, n0, x + w0, 0.08, n0, x + w1, 0.08, n1, x - w1, 0.08, n1], 3));
+      g.setIndex([0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1]);
+      vb.add(wedgeMat, g);
     });
     cb.flush(groups.cams);
+    vb.flush(groups.camCone);
   }
 
-  /* ================= ACCESS CONTROL: readers on the man-doors and the MDF door ================= */
+  /* ================= ACCESS CONTROL: readers at 1.1 m on the man-doors and the MDF door ================= */
   {
     const ab = new Batch();
-    const cR = M(0x27323a, 'access'), cL = M(COL.access, 'access', { glow: 0.9 }), cHalo = M(COL.access, 'access', { alpha: 0.3, basic: true });
-    const reader = (x, y, z, ry) => ab.at(x, y, z, ry, 4.5, (b) => {   // local +z points away from the wall
+    const cR = M(0x27323a, 'access'), cL = M(COL.access, 'access', { glow: 0.9 }), cHalo = M(COL.access, 'access', { alpha: 0.16, basic: true });
+    const reader = (x, y, z, ry) => ab.at(x, y, z, ry, 3, (b) => {   // local +z points away from the wall; drawn about 3x life size
       b.box(cR, 0.22, 0.34, 0.08, 0, 0, 0.04); b.box(cL, 0.14, 0.05, 0.03, 0, 0.1, 0.095); b.box(cL, 0.08, 0.08, 0.03, 0, -0.04, 0.095);
       b.add(cHalo, new CircleGeometry(0.5, 24), 0, 0, 0.02);
     });
-    reader(23.3, 1.1, -D + 0.04, 0);                                    // back-wall man-door
-    reader(-W + 0.04, 1.1, -4.7, Math.PI / 2);                          // west-wall man-door
-    reader(W - 0.04, 1.1, -9.3, -Math.PI / 2);                          // east-wall man-door
-    reader(MDF.x1 + 0.1, 1.1, MDF.dz + 1.0, Math.PI / 2);                       // MDF door, outside face
+    reader(19.3, READER_Y, -D + 0.04, 0);                                    // back-wall man-door
+    reader(-W + 0.04, READER_Y, -4.7, Math.PI / 2);                          // west-wall man-door
+    reader(W - 0.04, READER_Y, -9.3, -Math.PI / 2);                          // east-wall man-door
+    reader(MDF.x1 + 0.1, READER_Y, MDF.dz + 1.0, Math.PI / 2);               // MDF door, outside face
     ab.flush(groups.access);
   }
 
   /* labels (small billboards) */
   const labels = [];
-  function label(text, x, y, z, sys, grp) {
-    const c = mkCanvas(256, 80), g = c.getContext('2d');
-    g.fillStyle = 'rgba(11,20,25,.88)'; g.beginPath(); g.roundRect ? g.roundRect(4, 4, 248, 72, 16) : g.rect(4, 4, 248, 72); g.fill();
+  function label(text, x, y, z, sys, grp, wide) {
+    const w = wide ? 512 : 256, c = mkCanvas(w, 80), g = c.getContext('2d');
+    g.fillStyle = 'rgba(11,20,25,.88)'; g.beginPath(); g.roundRect ? g.roundRect(4, 4, w - 8, 72, 16) : g.rect(4, 4, w - 8, 72); g.fill();
     g.lineWidth = 4; g.strokeStyle = '#' + COL[grp || 'fiber'].toString(16).padStart(6, '0'); g.stroke();
-    g.fillStyle = '#f4f8fa'; g.font = '700 38px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 128, 42);
+    g.fillStyle = '#f4f8fa'; g.font = '700 38px Inter, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, 42);
     const t = new CanvasTexture(c); t.colorSpace = SRGBColorSpace;
     const sp = new Sprite(new SpriteMaterial({ map: t, transparent: true, depthTest: false }));
-    sp.position.set(x, y, z); sp.renderOrder = 20; groups[sys].add(sp);
+    sp.position.set(x, y, z); sp.renderOrder = 20; sp.userData.w = wide ? 2 : 1; groups[sys].add(sp);
     labels.push(sp);
   }
   label('MDF', -24.5, 4.9, 14.5, 'mdf'); label('IDF 1', 25, 4.4, 0, 'backbone'); label('IDF 2', 25, 4.4, -15, 'backbone'); label('Fiber in', -27.3, 2.6, 35, 'fiber');
+  label('Illustrative coverage', 0, 0.6, 0, 'wifiCov', 'wireless', true);
 
   /* ---------- system state: visible, dimmed, lit ---------- */
   const st = {};
@@ -490,17 +442,18 @@ export function create(canvas, options) {
   function targets(step) {
     const act = STEP_SYS[step];
     for (const k of Object.keys(st)) {
-      const s = st[k];
-      groups[k].visible = SYS_STEP[k] <= step;
-      s.tDim = act ? (k === act ? 0 : 0.62) : 0;
-      s.tHi = k === 'base' ? 0 : act ? (k === act ? 1 : 0) : step >= STEPS ? 0.3 : 0;
+      const s = st[k], on = act && act.indexOf(k) >= 0;
+      // overlays show on their own step only; the roof trusses only where the J-hooks need something to hang from
+      groups[k].visible = k === 'roof' ? step === 4 : k === 'wifiCov' ? step === 5 : k === 'camCone' ? step === 6 : SYS_STEP[k] <= step;
+      s.tDim = act ? (on ? 0 : DEVICES[k] && step === 4 ? 0.3 : 0.62) : 0;
+      s.tHi = k === 'base' || k === 'roof' ? 0 : act ? (on ? 1 : 0) : step >= STEPS ? 0.3 : 0;
     }
   }
 
-  /* ---------- camera: spherical orbit around the pose target, clamped; glides between poses ---------- */
+  /* ---------- camera: spherical orbit around the pose target, clamped; each step eases to its own pose ---------- */
   const cam = { tx: 0, ty: 0, tz: 0, dist: 90, az: 0, el: 30 };
   const goal = Object.assign({}, cam);
-  let aspect = 1, fit = 1, fitAspect = 0;
+  let aspect = 1, fit = 1, fitAspect = 0, tween = null;
   /* Distance at which the whole building (walls, MDF room) sits inside the view for this target and angle, at this aspect. */
   const _c = new Vector3(), _f = new Vector3(), _r = new Vector3(), _u = new Vector3();
   function fitDist(tx, ty, tz, az, el, a) {
@@ -518,24 +471,26 @@ export function create(canvas, options) {
     }
     return need;
   }
-  function setPose(p, n) {
-    goal.tx = p[0]; goal.ty = p[1]; goal.tz = p[2]; goal.dist = p[3]; goal.az = p[4]; goal.el = p[5];
-    if (WHOLE[n]) {
-      goal.tx = 0; goal.ty = H * 0.4; goal.tz = 0;   // centre on the building
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);   // easeInOutCubic
+  function setPose(p, snap) {
+    goal.tx = p.t[0]; goal.ty = p.t[1]; goal.tz = p.t[2]; goal.dist = p.d * (p.nar && aspect < 1.3 ? p.nar : 1); goal.az = p.az; goal.el = p.el;
+    if (p.fit) {
       if (aspect < 0.8) goal.el = Math.max(goal.el, 50);   // portrait: look down more so the depth uses the tall canvas
       goal.dist = fitDist(goal.tx, goal.ty, goal.tz, goal.az, goal.el, aspect) / fit;   // place() multiplies by fit again
     }
+    goal.az = cam.az + ((((goal.az - cam.az) % 360) + 540) % 360 - 180);   // turn the short way round
+    if (snap || reduced) { Object.assign(cam, goal); tween = null; }
+    else tween = { from: Object.assign({}, cam), t: 0 };
   }
   function place() {
     const d = cam.dist * fit, a = rad(cam.az), e = rad(clamp(cam.el, LIMIT.el[0], LIMIT.el[1]));
     camera.position.set(cam.tx + Math.sin(a) * Math.cos(e) * d, Math.max(1.5, cam.ty + Math.sin(e) * d), cam.tz + Math.cos(a) * Math.cos(e) * d);
     camera.lookAt(cam.tx, cam.ty, cam.tz);
-    const k = cam.dist * fit * 0.05;
-    labels.forEach((l) => l.scale.set(k, k * 0.3125, 1));
+    const k = cam.dist * fit * 0.07;
+    labels.forEach((l) => l.scale.set(k * l.userData.w, k * 0.3125, 1));
   }
 
   let step = 1, rafId = 0, last = 0, size = [0, 0], dpr = 1, alive = true, drag = 0;
-  const SPEED = 5.2;   // 1/s: the glide settles in about a second
   function setSize(w, h, ratio) {
     ratio = Math.min(ratio || 1, maxDpr);
     if (!w || !h || (w === size[0] && h === size[1] && ratio === dpr)) return;
@@ -545,7 +500,7 @@ export function create(canvas, options) {
     aspect = w / h; fit = Math.max(1, 1 / aspect) * (aspect > 1.4 ? 0.88 : 1);
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
-    if (WHOLE[step] && !drag && Math.abs(aspect - fitAspect) > 0.01) { fitAspect = aspect; setPose(POSE[step], step); }   // refit on resize / rotate
+    if (POSE[step].fit && !drag && Math.abs(aspect - fitAspect) > 0.01) { fitAspect = aspect; setPose(POSE[step], true); }   // refit on resize / rotate
     wake();
   }
   function frameTick(now) {
@@ -554,13 +509,12 @@ export function create(canvas, options) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
     last = now;
     let moving = false;
-    const k = reduced ? 1 : 1 - Math.exp(-SPEED * dt);
-    if (!drag) {
-      for (const key of ['tx', 'ty', 'tz', 'dist', 'az', 'el']) {
-        const d = goal[key] - cam[key];
-        if (Math.abs(d) > 0.004) { cam[key] += d * k; moving = true; } else cam[key] = goal[key];
-      }
-    } else moving = true;
+    if (!drag && tween) {
+      tween.t = Math.min(1, tween.t + dt / GLIDE);
+      const e = ease(tween.t);
+      for (const key of ['tx', 'ty', 'tz', 'dist', 'az', 'el']) cam[key] = tween.from[key] + (goal[key] - tween.from[key]) * e;
+      if (tween.t >= 1) { Object.assign(cam, goal); tween = null; } else moving = true;
+    } else if (drag) moving = true;
     const kl = reduced ? 1 : 1 - Math.exp(-7 * dt);
     for (const key of Object.keys(st)) {
       const s = st[key];
@@ -576,10 +530,10 @@ export function create(canvas, options) {
   }
   function wake() { if (!rafId && alive) { last = performance.now(); rafId = raf(frameTick); } }
 
-  function setState(n) {
+  function setState(n) {   // also what "Reset view" calls: glide back to the current step's pose
     step = clamp(n | 0, 1, STEPS);
     fitAspect = aspect;
-    setPose(POSE[step], step);
+    setPose(POSE[step]);
     targets(step);
     wake();
   }
@@ -587,7 +541,7 @@ export function create(canvas, options) {
   /* ---------- orbit: drag to rotate, two fingers to pinch. Input arrives as calls (the page forwards its pointer events) ---------- */
   const ptrs = new Map();
   let pinch = 0;
-  function stopGlide() { Object.assign(goal, cam); }
+  function stopGlide() { tween = null; Object.assign(goal, cam); }
   function pointer(kind, id, x, y) {
     if (kind === 'down') {
       ptrs.set(id, [x, y]);
@@ -622,7 +576,7 @@ export function create(canvas, options) {
   setSize(options.width, options.height, options.dpr);
   setState(options.step || 1);
   // First paint without the glide: start parked on the first pose
-  Object.assign(cam, goal);
+  Object.assign(cam, goal); tween = null;
   for (const key of Object.keys(st)) { st[key].dim = st[key].tDim; st[key].hi = st[key].tHi; }
   applyLook(); place(); renderer.render(scene, camera);
 

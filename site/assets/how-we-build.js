@@ -137,6 +137,7 @@
       if (canvas) { canvas.remove(); canvas = null; }
       ctl = null;
       frame.classList.remove('is-3d');
+      if (resetBtn) resetBtn.hidden = true;
       frame.classList.add('is-still');
       panel.classList.add('is-nogl');
       panel.dispatchEvent(new CustomEvent('hwb:nogl'));
@@ -181,7 +182,10 @@
         ro.observe(frame);
       }
     }
-    function ready() { frame.classList.add('is-3d'); if (still) still.remove(); still = null; }
+    // "Reset view": glide back to the current step's pose (the scene eases there, or cuts under reduced motion).
+    var resetBtn = frame.querySelector('[data-reset]');
+    if (resetBtn) resetBtn.addEventListener('click', function () { if (ctl) ctl.state(latest.step, latest.focus); });
+    function ready() { frame.classList.add('is-3d'); if (resetBtn) resetBtn.hidden = false; if (still) still.remove(); still = null; }
 
     function startWorker() {
       canvas = newCanvas();

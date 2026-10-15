@@ -125,6 +125,12 @@
   .stage-frame.is-wh { height: auto; aspect-ratio: 1 / 1; max-height: 62svh; max-width: 640px; margin-inline: auto; }
 }
 
+/* Reset view: floats over the picture's top-right corner, so it never moves the layout between steps */
+.hwb-reset { position: absolute; top: 8px; right: 8px; z-index: 3; min-width: 44px; min-height: 44px; padding: 0 14px; color: var(--paper); background: rgba(5, 12, 16, .78); border: 1px solid var(--cyan-light); border-radius: 0; font: 600 14px/1 var(--body); cursor: pointer; }
+.hwb-reset:hover { color: var(--ink); background: var(--cyan-light); }
+.hwb-reset:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; }
+.hwb-reset[hidden] { display: none; }
+
 /* How We Build, no WebGL: the picture is the finished scene, so no step arrows or counter (the script shows the last step's caption) */
 .hwb-panel.is-nogl .hwb-arrow, .hwb-panel.is-nogl .hwb-count { display: none; }
 .hwb-panel.is-nogl .hwb-stagewrap { grid-template-columns: minmax(0, 1fr); }
