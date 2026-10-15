@@ -39,7 +39,7 @@ const DARK = new Color(0x0b1419);
 const POSE = {
   1: { t: [0, 3.8, 0], d: 100, az: 30, el: 38, fit: 1 },                  // high 3/4 isometric, roof removed
   2: { t: [-24.5, 2.4, 15], d: 27, az: 38, el: 9, nar: 1.3 },                        // low, at the entrance wall: conduit in, MDF door and room
-  3: { t: [0, 4, 1], d: 80, az: 6, el: 22, fit: 1 },                      // cutaway along the backbone, MDF to IDFs
+  3: { t: [0, 4, 1], d: 80, az: 88, el: 22, fit: 1 },                      // cutaway along the backbone, MDF to IDFs
   4: { t: [-3, 7.4, -2], d: 36, az: 26, el: -8, nar: 1.3 },                         // from below, up and along the tray and J-hook runs
   5: { t: [0, 0, 0], d: 90, az: 0, el: 86, fit: 1 },                      // top-down plan
   6: { t: [-4, 2.5, -9], d: 50, az: 52, el: 26, nar: 1.3 },                         // corner view of the camera views
@@ -288,7 +288,7 @@ export function create(canvas, options) {
     const kb = new Batch();
     const cB = M(COL.fiber, 'backbone', { glow: 0.55 });
     kb.pipe(cB, [[-24.0, 2.3, 11.6], [-24.0, 7.2, 11.6], [-24.0, 7.2, 6.4], [25, 7.2, 6.4], [25, 7.2, 0.6], [26.4, 7.2, 0.6], [26.4, 2.0, 0.6]], 0.19);
-    kb.pipe(cB, [[21, 7.2, 6.4], [21, 7.2, -15.5], [26.4, 7.2, -15.5], [26.4, 2.0, -15.5]], 0.19);
+    kb.pipe(cB, [[25, 7.2, 0.6], [25, 7.2, -15.5], [25, 2.0, -15.5]], 0.19);
     for (let x = -18; x < 24; x += 6) kb.box(M(0x6f8794, 'backbone'), 0.08, 0.9, 0.08, x, 7.65, 6.4);   // simple hangers
     kb.flush(groups.backbone);
   }
