@@ -288,7 +288,7 @@ export function create(canvas, options) {
     const kb = new Batch();
     const cB = M(COL.fiber, 'backbone', { glow: 0.55 });
     kb.pipe(cB, [[-24.0, 2.3, 11.6], [-24.0, 7.2, 11.6], [-24.0, 7.2, 6.4], [25, 7.2, 6.4], [25, 7.2, 0.6], [26.4, 7.2, 0.6], [26.4, 2.0, 0.6]], 0.19);
-    kb.pipe(cB, [[25, 7.2, 0.6], [25, 7.2, -15.5], [26.4, 7.2, -15.5], [26.4, 2.0, -15.5]], 0.19);
+    kb.pipe(cB, [[25, 7.2, 0.6], [25, 7.2, -15.5], [25, 2.0, -15.5]], 0.19);
     for (let x = -18; x < 24; x += 6) kb.box(M(0x6f8794, 'backbone'), 0.08, 0.9, 0.08, x, 7.65, 6.4);   // simple hangers
     kb.flush(groups.backbone);
   }
@@ -404,7 +404,7 @@ export function create(canvas, options) {
     const cR = M(0x27323a, 'access'), cL = M(COL.access, 'access', { glow: 0.9 }), cHalo = M(COL.access, 'access', { alpha: 0.16, basic: true });
     const reader = (x, y, z, ry) => ab.at(x, y, z, ry, 3, (b) => {   // local +z points away from the wall; drawn about 3x life size
       b.box(cR, 0.22, 0.34, 0.08, 0, 0, 0.04); b.box(cL, 0.14, 0.05, 0.03, 0, 0.1, 0.095); b.box(cL, 0.08, 0.08, 0.03, 0, -0.04, 0.095);
-      b.add(cHalo, new CircleGeometry(0.5, 24), 0, 0, 0.02);
+      b.add(cHalo, new CircleGeometry(0.26, 24), 0, 0, 0.02);
     });
     reader(19.3, READER_Y, -D + 0.04, 0);                                    // back-wall man-door
     reader(-W + 0.04, READER_Y, -4.7, Math.PI / 2);                          // west-wall man-door
