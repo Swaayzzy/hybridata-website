@@ -30,7 +30,9 @@
 .hwb-prev { grid-column: 1; grid-row: 1; }
 .hwb-next { grid-column: 3; grid-row: 1; }
 .hwb-arrow { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; padding: 0; color: var(--ink); background: var(--cyan-light); border: 2px solid var(--cyan-light); border-radius: 50%; cursor: pointer; }
-@media (hover: hover) { .hwb-arrow:hover:not(:disabled) { background: var(--paper); border-color: var(--paper); } }
+/* Hover only where a real pointer hovers: on touch, :hover sticks after a tap and the phone arrows (paper chevron) went white on white.
+   The ink chevron keeps a narrow mouse window (phone layout, paper chevron) readable too. */
+@media (hover: hover) and (pointer: fine) { .hwb-arrow:hover:not(:disabled) { color: var(--ink); background: var(--paper); border-color: var(--paper); } }
 .hwb-arrow:disabled { color: var(--paper); background: var(--panel-raised); border-color: var(--line-strong); opacity: .45; cursor: default; }
 .hwb-arrow:focus-visible, .picker-row button:focus-visible, .stage-frame:focus-visible { outline: 3px solid var(--paper); outline-offset: 3px; }
 .hwb:not(.is-ready) .hwb-arrow { display: none; }
