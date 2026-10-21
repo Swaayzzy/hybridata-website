@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Compare the wording of each page in site/ on a base git ref against the same
+page under /a/ and /b/ of the working tree.
+
+Compared, in document order, whitespace-normalised only:
+  visible text (not <script>/<style>), alt, aria-label, title attributes,
+  placeholder, button/input values and option labels, <title>, meta
+  description / og / twitter text, and JSON-LD.
+
+Usage: tools/textdiff [--base-ref origin/main] [--versions a b] [--root .] [-v]
+Exit status: 0 when every page matches, 1 on any difference or missing page.
+"""
+import argparse, difflib, json, os, re, subprocess, sys
+from html.parser import HTMLParser
+
+SKIP = {"script", "style"}
+VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+ATTRS = ("alt", "aria-label", "aria-description", "title", "placeholder")
+META_KEYS = {"description", "og:title", "og:description", "og:image:alt", "twitter:title",
+             "twitter:description", "twitter:image:alt", "og:site_name"}
+
+
+def norm(s):
+    return re.sub(r"\s+", " ", s).strip()
+
+
+class Extract(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.items, self.stack, self.buf, self.jsonld = [], [], None, None
+
+    def flush(self):
+        if self.buf is not None:
+            t = norm("".join(self.buf))
+            if t:
+                self.items.append("TEXT: " + t)
+            self.buf = []
+
+    def handle_starttag(self, tag, attrs):
+        a = {k: (v or "") for k, v in attrs}
+        self.flush() if tag not in {"b", "i", "em", "strong", "span", "a", "sup", "sub", "small", "abbr", "u", "mark"} else None
+        for k in ATTRS:
+            if k in a and norm(a[k]):
+                self.items.append(f"{k.upper()}[{tag}]: " + norm(a[k]))
+        if tag == "input" and a.get("type", "text") in {"submit", "button", "reset"} and a.get("value"):
+            self.items.append("VALUE: " + norm(a["value"]))
+        if tag == "meta":
+            key = a.get("name") or a.get("property")
+            if key in META_KEYS:
+                self.items.append(f"META {key}: " + norm(a.get("content", "")))
+        if tag == "script" and a.get("type") == "application/ld+json":
+            self.jsonld = []
+        if tag not in VOID:
+            self.stack.append(tag)
+        if tag in SKIP or self.buf is None:
+            self.buf = [] if self.buf is None else self.buf
+        if tag == "br" and self.buf is not None:
+            self.buf.append(" ")
+
+    def handle_endtag(self, tag):
+        if tag == "script" and self.jsonld is not None:
+            raw = "".join(self.jsonld)
+            try:
+                raw = json.dumps(json.loads(raw), sort_keys=False, ensure_ascii=False)
+            except ValueError:
+                raw = norm(raw)
+            self.items.append("JSONLD: " + raw)
+            self.jsonld = None
+        if tag not in {"b", "i", "em", "strong", "span", "a", "sup", "sub", "small", "abbr", "u", "mark"}:
+            self.flush()
+        if tag in self.stack:
+            while self.stack and self.stack.pop() != tag:
+                pass
+
+    def handle_data(self, data):
+        if self.jsonld is not None:
+            self.jsonld.append(data)
+            return
+        if any(t in SKIP for t in self.stack):
+            return
+        if self.buf is None:
+            self.buf = []
+        self.buf.append(data)
+
+
+def extract(html):
+    p = Extract()
+    p.feed(html)
+    p.flush()
+    return p.items
+
+
+def git(*args, cwd):
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--base-ref", default=None)
+    ap.add_argument("--versions", nargs="*", default=["a", "b"])
+    ap.add_argument("--root", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    ap.add_argument("-v", "--verbose", action="store_true")
+    o = ap.parse_args()
+    root = os.path.abspath(o.root)
+    ref = o.base_ref
+    if not ref:
+        for c in ("origin/main", "main"):
+            if subprocess.run(["git", "rev-parse", "--verify", "-q", c], cwd=root, capture_output=True).returncode == 0:
+                ref = c
+                break
+    if not ref:
+        sys.exit("no base ref (main) found")
+    pages = sorted(f.split("/", 1)[1] for f in git("ls-tree", "-r", "--name-only", ref, "site/", cwd=root).split()
+                   if f.endswith(".html") and f.count("/") == 1)
+    print(f"base {ref} @ {git('rev-parse', '--short', ref, cwd=root).strip()}, {len(pages)} pages")
+    total = 0
+    for v in o.versions:
+        vt = 0
+        for pg in pages:
+            base = extract(git("show", f"{ref}:site/{pg}", cwd=root))
+            path = os.path.join(root, v, pg)
+            if not os.path.exists(path):
+                print(f"  /{v}/{pg}: MISSING")
+                vt += 1
+                continue
+            with open(path, encoding="utf-8") as f:
+                mine = extract(f.read())
+            d = [l for l in difflib.unified_diff(base, mine, "main", f"/{v}/", lineterm="", n=0)
+                 if not l.startswith(("---", "+++", "@@"))]
+            print(f"  /{v}/{pg}: {'OK, 0 differences' if not d else str(len(d)) + ' differences'}  ({len(base)} items)")
+            for l in d:
+                print("      " + l[:300])
+            vt += len(d)
+        print(f"/{v}/ total differences: {vt}")
+        total += vt
+    print(f"TOTAL differences: {total}")
+    sys.exit(1 if total else 0)
+
+
+if __name__ == "__main__":
+    main()
