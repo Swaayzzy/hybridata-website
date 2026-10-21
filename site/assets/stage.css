@@ -142,3 +142,11 @@
 @media (min-width: 901px) {
   .hwb .stage-frame { height: clamp(380px, calc(100svh - 450px), 620px); }
 }
+/* Home hero: mission + company summary under the hero buttons */
+.hero-about { margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(188, 236, 248, .28); max-width: 700px; }
+.hero-about-mission { margin: 0 0 14px; color: #d5e0e3; font-size: 15px; line-height: 1.55; text-shadow: 0 2px 16px rgba(0, 0, 0, .74); }
+.hero-about-mission strong { color: #bcecf8; }
+.hero-about-facts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 22px; }
+.hero-about-facts li { position: relative; padding-left: 16px; color: #c6d2d6; font-size: 14px; line-height: 1.45; text-shadow: 0 2px 12px rgba(0, 0, 0, .74); }
+.hero-about-facts li::before { content: ""; position: absolute; left: 0; top: .55em; width: 7px; height: 7px; background: #bcecf8; }
+@media (max-width: 680px) { .hero-about { margin-top: 22px; padding-top: 18px; } .hero-about-facts { grid-template-columns: 1fr; gap: 7px; } }
