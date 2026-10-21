@@ -662,6 +662,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .nav-links a { font-size: 10px; }
   .nav-cta { padding-inline: 14px; }
 }
+/* Eight top-level links: keep each on one line and tighten the row until the phone menu takes over at 1020px. */
+@media (max-width: 1160px) and (min-width: 1021px) {
+  .nav-links { gap: 10px; }
+  .nav-links > a, .nav-service-trigger .nav-top-link { white-space: nowrap; }
+  .nav-cta { padding-inline: 10px; font-size: 10px; }
+}
 
 @media (max-width: 1020px) {
   .nav { min-height: 86px; }
@@ -711,8 +717,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .hero::after { width: 80vw; height: 80vw; right: -40vw; top: 7%; }
   .hero-shade {
     background:
-      linear-gradient(180deg, rgba(3, 7, 9, .82) 0%, rgba(3, 7, 9, .48) 36%, rgba(3, 7, 9, .86) 74%, rgba(3, 7, 9, .98) 100%),
-      linear-gradient(90deg, rgba(3, 7, 9, .9), rgba(3, 7, 9, .18));
+      linear-gradient(180deg, rgba(3, 7, 9, .62) 0%, rgba(3, 7, 9, .42) 36%, rgba(3, 7, 9, .62) 74%, rgba(3, 7, 9, .88) 100%),
+      linear-gradient(90deg, rgba(3, 7, 9, .5), rgba(3, 7, 9, .1));
   }
   .hero-photo img { object-position: center; }
   .hero-grid { gap: 30px; min-height: 790px; padding: 72px 0 48px; }
@@ -2166,3 +2172,13 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .ia-home-pathways *,
   .ia-services-map * { transition: none !important; }
 }
+
+.photo-pair { display: grid; grid-template-columns: 1fr 1fr; }
+.photo-pair img, .service-map-photo .photo-pair img { aspect-ratio: 1 / 1; min-height: 0; }
+.photo-pair-band .realistic-visual { max-width: 928px; margin-inline: auto; }
+@media (max-width: 680px) {
+  .photo-pair { grid-template-columns: 1fr; }
+  .photo-pair img, .service-map-photo .photo-pair img { aspect-ratio: 4 / 3; }
+}
+.testing-band { max-width: 1024px; margin-inline: auto; }
+@media (max-width: 680px) { .testing-band img { aspect-ratio: 546 / 683; } }

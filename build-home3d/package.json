@@ -1,0 +1,22 @@
+{
+  "name": "hybridata-3d-build",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build tooling for the self-hosted 3D bundle (assets/3d/). Dev-only; nothing here ships.",
+  "type": "module",
+  "scripts": {
+    "assets": "python3 scripts/make-assets.py",
+    "licenses": "echo 'disabled: LICENSES.md is maintained by hand since LIGHT-502' && exit 1",
+    "build": "node scripts/build.mjs",
+    "assets:rack": "python3 scripts/make-assets-rack.py",
+    "build:rack": "node scripts/build-rack.mjs",
+    "build:wh": "node scripts/build-wh.mjs",
+    "licenses:rack": "echo 'disabled: LICENSES.md is maintained by hand since LIGHT-502' && exit 1"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

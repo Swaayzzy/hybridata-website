@@ -1,0 +1,33 @@
+# Staging preview: every push to `staging` publishes site/ (with noindex) to GitHub Pages.
+# Production is not affected. The live site only changes when Adam says "publish".
+name: Staging preview (GitHub Pages)
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: staging-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hide staging from search engines
+        run: bash scripts/staging-noindex.sh
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
