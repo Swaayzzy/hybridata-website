@@ -14,7 +14,10 @@ Allowed differences (LIGHT-888, nothing else passes):
   2. photo-credits.html: added lines (new credit entries); the source-photo count number changed; removal of the credit
      entry of an image no longer used (6 named lines, max);
   3. alt text of <img> on any page (new or swapped images), plus the 6 industry
-     labels as added text on industries.html.
+     labels as added text on industries.html;
+  4. photo-credits.html AI-image note: deletion of page names that no longer
+     carry AI images (LIGHT-920), exactly one removed + one added line per
+     version, and the new line must be the old one with words deleted only.
 Allowed differences are listed in the output; every other difference is a FAIL.
 
 Usage: tools/textdiff [--base-ref origin/main] [--versions a b] [--root .] [-v] [--strict]
@@ -48,12 +51,30 @@ CREDIT_REMOVED = ("TEXT: 02", "TEXT: Interior of an Warehouses", "TEXT: Industri
 CREDIT_REMOVED_MAX = len(CREDIT_REMOVED)
 
 
+# LIGHT-920 (Hybridata Manager approved, deletions only): the AI-image note on photo-credits.html may lose page names that no
+# longer carry AI images. Cap: exactly 1 removed + 1 added line per version; the new line must be the old line with words deleted.
+AI_NOTE_MARK = "are AI-generated illustrations"
+AI_NOTE_MAX = 1
+
+
+def ai_note_pair(removed, added):
+    """True if `added` is `removed` with whole words deleted and nothing else changed (subsequence of words, commas ignored)."""
+    a, r = added.replace(",", "").split(), removed.replace(",", "").split()  # commas next to deleted names go with them
+    i = 0
+    for w in r:
+        if i < len(a) and a[i] == w:
+            i += 1
+    return i == len(a) and len(a) < len(r)
+
+
 def classify(page, line):
     """Return an allowed-category name for a diff line ('-x' / '+x'), or None."""
     sign, text = line[0], line[1:]
     if page == "case-studies.html" and sign == "-" and text in CASE_STRINGS:
         return "case-study string removed"
     if page == "photo-credits.html":
+        if AI_NOTE_MARK in text:
+            return "AI-note page-name removed"
         if sign == "-" and text == CREDIT_COUNT_OLD[:0] + CREDIT_COUNT_OLD:
             return "source-photo count number changed"
         if sign == "+" and CREDIT_COUNT_NEW.match(text):
@@ -204,6 +225,12 @@ def main():
                 if case_counts[c] != CASE_EXPECT:
                     print(f"  /{v}/ FAIL: {c[6:]!r} removed {case_counts[c]}x, expected {CASE_EXPECT}")
                     vt += 1
+            ai = allowed.get("AI-note page-name removed", [])
+            ai_minus = [l[1:] for _, l in ai if l[0] == "-"]
+            ai_plus = [l[1:] for _, l in ai if l[0] == "+"]
+            if ai and not (len(ai_minus) == len(ai_plus) <= AI_NOTE_MAX and ai_note_pair(ai_minus[0], ai_plus[0])):
+                print(f"  /{v}/ FAIL: AI-note change is not exactly {AI_NOTE_MAX} pure word-deletion line pair")
+                vt += 1
             removed_n = len(allowed.get("credit entry removed (image no longer used)", []))
             if removed_n > CREDIT_REMOVED_MAX:
                 print(f"  /{v}/ FAIL: {removed_n} credit lines removed, max {CREDIT_REMOVED_MAX}")
