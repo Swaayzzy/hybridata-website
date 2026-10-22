@@ -7,8 +7,19 @@ Compared, in document order, whitespace-normalised only:
   placeholder, button/input values and option labels, <title>, meta
   description / og / twitter text, and JSON-LD.
 
-Usage: tools/textdiff [--base-ref origin/main] [--versions a b] [--root .] [-v]
-Exit status: 0 when every page matches, 1 on any difference or missing page.
+Allowed differences (LIGHT-888, nothing else passes):
+  1. case-study strings removed: exactly 5 x "Representative scenario — not a
+     published customer case study" + 5 x "Not a published customer case study"
+     per version, on case-studies.html only, removals only (10 per version);
+  2. photo-credits.html: added lines only (new credit entries);
+  3. alt text of <img> on any page (new or swapped images), plus the 6 industry
+     labels as added text on industries.html.
+Allowed differences are listed in the output; every other difference is a FAIL.
+
+Usage: tools/textdiff [--base-ref origin/main] [--versions a b] [--root .] [-v] [--strict]
+  --strict  allow nothing (the original byte-for-byte wording check)
+Exit status: 0 when only allowed differences remain and the counts are right,
+1 on any other difference, a wrong count, or a missing page.
 """
 import argparse, difflib, json, os, re, subprocess, sys
 from html.parser import HTMLParser
@@ -18,6 +29,28 @@ VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "met
 ATTRS = ("alt", "aria-label", "aria-description", "title", "placeholder")
 META_KEYS = {"description", "og:title", "og:description", "og:image:alt", "twitter:title",
              "twitter:description", "twitter:image:alt", "og:site_name"}
+
+
+CASE_STRINGS = ("TEXT: Representative scenario — not a published customer case study",
+                "TEXT: Not a published customer case study")
+CASE_EXPECT = 5  # per string, per version (10 per version in total)
+INDUSTRY_LABELS = {"TEXT: " + n for n in ("Data centers", "Distribution centers", "Commercial environments",
+                                          "Healthcare", "Government", "Airports")}
+INDUSTRY_LABEL_MAX = 6
+
+
+def classify(page, line):
+    """Return an allowed-category name for a diff line ('-x' / '+x'), or None."""
+    sign, text = line[0], line[1:]
+    if page == "case-studies.html" and sign == "-" and text in CASE_STRINGS:
+        return "case-study string removed"
+    if page == "photo-credits.html" and sign == "+":
+        return "photo-credit entry added"
+    if text.startswith("ALT[img]: "):
+        return "image alt text new/swapped"
+    if page == "industries.html" and sign == "+" and text in INDUSTRY_LABELS:
+        return "industries composite label"
+    return None
 
 
 def norm(s):
@@ -38,7 +71,7 @@ class Extract(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         a = {k: (v or "") for k, v in attrs}
-        self.flush() if tag not in {"b", "i", "em", "strong", "span", "a", "sup", "sub", "small", "abbr", "u", "mark"} else None
+        self.flush() if tag not in {"b", "i", "em", "strong", "span", "a", "sup", "sub", "abbr", "u", "mark"} else None
         for k in ATTRS:
             if k in a and norm(a[k]):
                 self.items.append(f"{k.upper()}[{tag}]: " + norm(a[k]))
@@ -66,7 +99,7 @@ class Extract(HTMLParser):
                 raw = norm(raw)
             self.items.append("JSONLD: " + raw)
             self.jsonld = None
-        if tag not in {"b", "i", "em", "strong", "span", "a", "sup", "sub", "small", "abbr", "u", "mark"}:
+        if tag not in {"b", "i", "em", "strong", "span", "a", "sup", "sub", "abbr", "u", "mark"}:
             self.flush()
         if tag in self.stack:
             while self.stack and self.stack.pop() != tag:
@@ -100,6 +133,7 @@ def main():
     ap.add_argument("--versions", nargs="*", default=["a", "b"])
     ap.add_argument("--root", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument("--strict", action="store_true", help="allow no differences at all")
     o = ap.parse_args()
     root = os.path.abspath(o.root)
     ref = o.base_ref
@@ -116,6 +150,9 @@ def main():
     total = 0
     for v in o.versions:
         vt = 0
+        allowed = {}
+        case_counts = {c: 0 for c in CASE_STRINGS}
+        label_count = 0
         for pg in pages:
             base = extract(git("show", f"{ref}:site/{pg}", cwd=root))
             path = os.path.join(root, v, pg)
@@ -127,13 +164,39 @@ def main():
                 mine = extract(f.read())
             d = [l for l in difflib.unified_diff(base, mine, "main", f"/{v}/", lineterm="", n=0)
                  if not l.startswith(("---", "+++", "@@"))]
-            print(f"  /{v}/{pg}: {'OK, 0 differences' if not d else str(len(d)) + ' differences'}  ({len(base)} items)")
+            fails = []
             for l in d:
-                print("      " + l[:300])
-            vt += len(d)
-        print(f"/{v}/ total differences: {vt}")
+                cat = None if o.strict else classify(pg, l)
+                if cat:
+                    allowed.setdefault(cat, []).append((pg, l))
+                    if cat == "case-study string removed":
+                        case_counts[l[1:]] += 1
+                    if cat == "industries composite label":
+                        label_count += 1
+                else:
+                    fails.append(l)
+            if not d:
+                status = "OK, 0 differences"
+            else:
+                status = f"{len(d) - len(fails)} allowed, {len(fails)} NOT allowed"
+            print(f"  /{v}/{pg}: {status}  ({len(base)} items)")
+            for l in d:
+                print(("      " if l in fails else "      [allowed] ") + l[:300])
+            vt += len(fails)
+        if not o.strict:
+            for c in CASE_STRINGS:
+                if case_counts[c] != CASE_EXPECT:
+                    print(f"  /{v}/ FAIL: {c[6:]!r} removed {case_counts[c]}x, expected {CASE_EXPECT}")
+                    vt += 1
+            if label_count > INDUSTRY_LABEL_MAX:
+                print(f"  /{v}/ FAIL: {label_count} industry labels added, max {INDUSTRY_LABEL_MAX}")
+                vt += 1
+            print(f"/{v}/ allowed differences by category: " +
+                  (", ".join(f"{k} = {len(x)}" for k, x in allowed.items()) or "none"))
+            print(f"/{v}/ case-study removals: {sum(case_counts.values())} (expect {2 * CASE_EXPECT})")
+        print(f"/{v}/ total NOT-allowed differences: {vt}")
         total += vt
-    print(f"TOTAL differences: {total}")
+    print(f"TOTAL NOT-allowed differences: {total}")
     sys.exit(1 if total else 0)
 
 
