@@ -1,0 +1,42 @@
+
+=== Version /a/: 22 photo slots, 11 distinct photos ===
+photo (desktop file / sha256[:12] / pHash)                               slots
+survey-desktop.avif / 8512a99454ef / 1a5e95cda7ad0961                    process.html[2], service-network-engineering-design-assist-consulting.html[1], service-wireless-site-surveys-design-installation.html[1], services.html[1], services.html[6]  <-- REPEAT
+                                                                           files: survey-desktop.avif, survey-desktop.webp, survey-mobile.avif, survey-mobile.webp
+pathway-desktop.avif / 606b5bebf58f / ad0cd6a94673c8a7                   process.html[1], service-osp-fiber-route-permit-row-coordination.html[1], services.html[7]  <-- REPEAT
+                                                                           files: pathway-desktop.avif, pathway-desktop.webp, pathway-mobile.avif, pathway-mobile.webp
+testing-desktop.avif / 72ca77d4f87e / 47d28cf83faaa981                   process.html[3], service-fusion-splicing-fiber-testing.html[1], services.html[3]  <-- REPEAT
+                                                                           files: testing-desktop.avif, testing-desktop.webp, testing-mobile.avif, testing-mobile.webp
+mdf-desktop.avif / 6bcd48a23d68 / 05018d3f8fe33c4f                       service-data-center-fiber-structured-cabling.html[1], services.html[2]  <-- REPEAT
+                                                                           files: mdf-desktop.avif, mdf-desktop.webp, mdf-mobile.avif, mdf-mobile.webp
+surveillance-left-desktop.avif / c5b2941e2ea8 / 8666371bad464b69         service-access-control-surveillance.html[1], services.html[4]  <-- REPEAT
+                                                                           files: surveillance-left-desktop.avif, surveillance-left-desktop.webp, surveillance-left-mobile.avif, surveillance-left-mobile.webp
+surveillance-right-desktop.avif / 2afb605fa569 / 06ccdc076ebc8537        service-access-control-surveillance.html[2], services.html[5]  <-- REPEAT
+                                                                           files: surveillance-right-desktop.avif, surveillance-right-desktop.webp, surveillance-right-mobile.avif, surveillance-right-mobile.webp
+case-context-desktop.avif / 15955ddb87f2 / 4f06aa06b5b05f8f              case-studies.html[1]
+fiber-about-desktop.avif / 0d5bbde35d47 / b23696306b4869ef               about.html[1]
+fiber-contact-desktop.avif / b0d1f70ac6d7 / b463a3097c74c39d             contact.html[1]
+hero-desktop.avif / a373e4f5c4fd / 85729f40bf11eb51                      index.html[1]
+industries-desktop.avif / fe4713b23d2d / d5383c07b535c761                industries.html[1]
+/a/ photos used on more than one slot: 6
+
+=== Version /b/: 22 photo slots, 11 distinct photos ===
+photo (desktop file / sha256[:12] / pHash)                               slots
+survey-desktop.avif / 8512a99454ef / 1a5e95cda7ad0961                    process.html[2], service-network-engineering-design-assist-consulting.html[1], service-wireless-site-surveys-design-installation.html[1], services.html[1], services.html[6]  <-- REPEAT
+                                                                           files: survey-desktop.avif, survey-desktop.webp, survey-mobile.avif, survey-mobile.webp
+pathway-desktop.avif / 606b5bebf58f / ad0cd6a94673c8a7                   process.html[1], service-osp-fiber-route-permit-row-coordination.html[1], services.html[7]  <-- REPEAT
+                                                                           files: pathway-desktop.avif, pathway-desktop.webp, pathway-mobile.avif, pathway-mobile.webp
+testing-desktop.avif / 72ca77d4f87e / 47d28cf83faaa981                   process.html[3], service-fusion-splicing-fiber-testing.html[1], services.html[3]  <-- REPEAT
+                                                                           files: testing-desktop.avif, testing-desktop.webp, testing-mobile.avif, testing-mobile.webp
+mdf-desktop.avif / 6bcd48a23d68 / 05018d3f8fe33c4f                       service-data-center-fiber-structured-cabling.html[1], services.html[2]  <-- REPEAT
+                                                                           files: mdf-desktop.avif, mdf-desktop.webp, mdf-mobile.avif, mdf-mobile.webp
+surveillance-left-desktop.avif / c5b2941e2ea8 / 8666371bad464b69         service-access-control-surveillance.html[1], services.html[4]  <-- REPEAT
+                                                                           files: surveillance-left-desktop.avif, surveillance-left-desktop.webp, surveillance-left-mobile.avif, surveillance-left-mobile.webp
+surveillance-right-desktop.avif / 2afb605fa569 / 06ccdc076ebc8537        service-access-control-surveillance.html[2], services.html[5]  <-- REPEAT
+                                                                           files: surveillance-right-desktop.avif, surveillance-right-desktop.webp, surveillance-right-mobile.avif, surveillance-right-mobile.webp
+case-context-desktop.avif / 15955ddb87f2 / 4f06aa06b5b05f8f              case-studies.html[1]
+fiber-about-desktop.avif / 0d5bbde35d47 / b23696306b4869ef               about.html[1]
+fiber-contact-desktop.avif / b0d1f70ac6d7 / b463a3097c74c39d             contact.html[1]
+hero-desktop.avif / a373e4f5c4fd / 85729f40bf11eb51                      index.html[1]
+industries-desktop.avif / fe4713b23d2d / d5383c07b535c761                industries.html[1]
+/b/ photos used on more than one slot: 6
