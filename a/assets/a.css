@@ -85,8 +85,6 @@ h1,h2{font-family:var(--display);font-weight:800;text-transform:uppercase;letter
 .industry-composite img{display:block;width:100%;height:auto;aspect-ratio:2/1;object-fit:cover}
 .industry-composite-labels{position:absolute;inset:0;margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr)}
 .industry-composite-labels li{display:flex;align-items:flex-end;padding:0 10px 9px;font:700 clamp(15px,1.45vw,20px)/1.1 "Barlow Condensed",var(--display,sans-serif);letter-spacing:.02em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85);background:linear-gradient(0deg,rgba(3,10,16,.86),rgba(3,10,16,0) 52%)}
-.js:not(.reveal-all) .industry-composite:not(.is-in) .industry-composite-labels{opacity:0}
-.industry-composite-labels{transition:opacity .6s .5s}
 @media(max-width:680px){
   .process-step-photo{grid-column:1;max-width:none}
   .process-step-photo img{aspect-ratio:4/3}
