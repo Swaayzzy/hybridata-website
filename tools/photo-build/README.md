@@ -1,0 +1,1 @@
+LIGHT-891 record. `export-photos.py` crops and exports the Security-cleared Pexels originals (branch `redesign-preview-intake`, `intake/`) to AVIF + WebP. `wire-photos.py` wired them into /a/ and /b/ (one-shot; it is not idempotent). Both expect the working layout used on the task (`scratch/orig`, `out/photos`, `scratch/manifest.csv`).

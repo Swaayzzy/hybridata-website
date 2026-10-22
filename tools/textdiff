@@ -11,7 +11,8 @@ Allowed differences (LIGHT-888, nothing else passes):
   1. case-study strings removed: exactly 5 x "Representative scenario — not a
      published customer case study" + 5 x "Not a published customer case study"
      per version, on case-studies.html only, removals only (10 per version);
-  2. photo-credits.html: added lines only (new credit entries);
+  2. photo-credits.html: added lines (new credit entries); the source-photo count number changed; removal of the credit
+     entry of an image no longer used (6 named lines, max);
   3. alt text of <img> on any page (new or swapped images), plus the 6 industry
      labels as added text on industries.html.
 Allowed differences are listed in the output; every other difference is a FAIL.
@@ -37,6 +38,14 @@ CASE_EXPECT = 5  # per string, per version (10 per version in total)
 INDUSTRY_LABELS = {"TEXT: " + n for n in ("Data centers", "Distribution centers", "Commercial environments",
                                           "Healthcare", "Government", "Airports")}
 INDUSTRY_LABEL_MAX = 6
+# photo-credits.html (Web Manager decision, LIGHT-891): besides added entries, the source-photo count number may change and the
+# credit entry of an image no longer used anywhere may be removed (exactly these 6 lines of the old "Interior of an Warehouses" card).
+CREDIT_COUNT_OLD = "TEXT: 5 approved source photographs."
+CREDIT_COUNT_NEW = re.compile(r"^TEXT: \d+ approved source photographs\.$")
+CREDIT_REMOVED = ("TEXT: 02", "TEXT: Interior of an Warehouses", "TEXT: Industries — high-bay warehouse racking aisle",
+                  "TEXT: Encik Tekateki · CC BY 4.0", "TEXT: Source record ↗License terms ↗",
+                  "TEXT: Cropped and resized; darkened and tinted blue; converted to WebP and AVIF.")
+CREDIT_REMOVED_MAX = len(CREDIT_REMOVED)
 
 
 def classify(page, line):
@@ -44,8 +53,15 @@ def classify(page, line):
     sign, text = line[0], line[1:]
     if page == "case-studies.html" and sign == "-" and text in CASE_STRINGS:
         return "case-study string removed"
-    if page == "photo-credits.html" and sign == "+":
-        return "photo-credit entry added"
+    if page == "photo-credits.html":
+        if sign == "-" and text == CREDIT_COUNT_OLD[:0] + CREDIT_COUNT_OLD:
+            return "source-photo count number changed"
+        if sign == "+" and CREDIT_COUNT_NEW.match(text):
+            return "source-photo count number changed"
+        if sign == "-" and text in CREDIT_REMOVED:
+            return "credit entry removed (image no longer used)"
+        if sign == "+":
+            return "photo-credit entry added"
     if text.startswith("ALT[img]: "):
         return "image alt text new/swapped"
     if page == "industries.html" and sign == "+" and text in INDUSTRY_LABELS:
@@ -188,6 +204,10 @@ def main():
                 if case_counts[c] != CASE_EXPECT:
                     print(f"  /{v}/ FAIL: {c[6:]!r} removed {case_counts[c]}x, expected {CASE_EXPECT}")
                     vt += 1
+            removed_n = len(allowed.get("credit entry removed (image no longer used)", []))
+            if removed_n > CREDIT_REMOVED_MAX:
+                print(f"  /{v}/ FAIL: {removed_n} credit lines removed, max {CREDIT_REMOVED_MAX}")
+                vt += 1
             if label_count > INDUSTRY_LABEL_MAX:
                 print(f"  /{v}/ FAIL: {label_count} industry labels added, max {INDUSTRY_LABEL_MAX}")
                 vt += 1

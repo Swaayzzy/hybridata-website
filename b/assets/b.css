@@ -411,3 +411,21 @@ main div:not(.ia-section-intro):not(.section-head)>h2+p{margin-top:18px}
 .related-links a{display:flex;align-items:center;min-height:56px;padding:8px 0;border-bottom:1px solid var(--line);font:500 17px/1.3 var(--disp);text-decoration:none}
 .service-related>.wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,72px);align-items:start}
 @media (max-width:1020px){.service-related>.wrap{grid-template-columns:1fr}}
+
+/* LIGHT-891: one photo per process step, industries composite */
+.process-step-photo{grid-column:2;margin:22px 0 0;max-width:560px}
+.process-step-photo img{display:block;width:100%;height:auto;aspect-ratio:8/5;object-fit:cover}
+.industry-composite{position:relative}
+.industry-composite img{display:block;width:100%;height:auto;aspect-ratio:2/1;object-fit:cover}
+.industry-composite-labels{position:absolute;inset:0;margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr)}
+.industry-composite-labels li{display:flex;align-items:flex-end;padding:0 10px 9px;font:700 clamp(15px,1.45vw,20px)/1.1 "Barlow Condensed",var(--display,sans-serif);letter-spacing:.02em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85);background:linear-gradient(0deg,rgba(3,10,16,.86),rgba(3,10,16,0) 52%)}
+.js:not(.reveal-all) .industry-composite:not(.is-in) .industry-composite-labels{opacity:0}
+.industry-composite-labels{transition:opacity .6s .5s}
+@media(max-width:680px){
+  .process-step-photo{grid-column:1;max-width:none}
+  .process-step-photo img{aspect-ratio:4/3}
+  .industry-composite img{aspect-ratio:780/990}
+  .industry-composite-labels{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr)}
+  .industry-composite-labels li{padding:0 8px 8px;font-size:16px}
+}
+.ia-process-story .visual-disclosure{margin-bottom:32px}
