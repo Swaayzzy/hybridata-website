@@ -88,6 +88,7 @@ h1,h2{font-family:var(--display);font-weight:800;text-transform:uppercase;letter
 @media(max-width:680px){
   .process-step-photo{grid-column:1;max-width:none}
   .process-step-photo img{aspect-ratio:4/3}
+  .process-step-photo[data-photo-key="process-6-otdr"] img{aspect-ratio:633/791}
   .industry-composite img{aspect-ratio:780/990}
   .industry-composite-labels{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr)}
   .industry-composite-labels li{padding:0 8px 8px;font-size:16px}
