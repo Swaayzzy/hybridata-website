@@ -784,7 +784,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 /* Approved copy revision — broader commercial information architecture */
 .proof-strip {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   border-block: 1px solid var(--line-strong);
   background: #081116;
 }
