@@ -6,3 +6,6 @@
 .hero-about-facts li { position: relative; padding-left: 16px; color: #c6d2d6; font-size: 14px; line-height: 1.45; text-shadow: 0 2px 12px rgba(0, 0, 0, .74); }
 .hero-about-facts li::before { content: ""; position: absolute; left: 0; top: .55em; width: 7px; height: 7px; background: #bcecf8; }
 @media (max-width: 680px) { .hero-about { margin-top: 22px; padding-top: 18px; } .hero-about-facts { grid-template-columns: 1fr; gap: 7px; } }
+/* Home services path: every step's number sits on the line (the old 5-step zig-zag offsets no longer fit 11 steps) */
+.home-pathway-step-2, .home-pathway-step-3, .home-pathway-step-4 { margin-left: 0; }
+@media (min-width: 681px) { .home-pathway::before { left: 28px; } }
