@@ -784,7 +784,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 /* Approved copy revision — broader commercial information architecture */
 .proof-strip {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   border-block: 1px solid var(--line-strong);
   background: #081116;
 }
@@ -2182,3 +2182,20 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 .testing-band { max-width: 1024px; margin-inline: auto; }
 @media (max-width: 680px) { .testing-band img { aspect-ratio: 546 / 683; } }
+
+/* About page: mission pull-quote, services list, assurance cards */
+.about-mission { padding-bottom: 0; }
+.about-mission blockquote { max-width: 980px; margin: 14px 0 0; padding: 4px 0 4px 28px; border-left: 4px solid #176687; }
+.about-mission blockquote p { margin: 0; color: #123f50; font: 700 clamp(24px, 3vw, 36px)/1.25 var(--display); letter-spacing: .01em; }
+.about-what .about-services { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; margin: 4px 0 22px; padding: 0; list-style: none; }
+.about-what .about-services li { position: relative; min-width: 0; padding-left: 18px; color: #1d2f36; line-height: 1.45; }
+.about-what .about-services li::before { content: ''; position: absolute; left: 0; top: .6em; width: 7px; height: 7px; background: #176687; }
+.about-assurance > .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.about-assurance-card { padding: 30px 32px; background: #fff; border-top: 3px solid #176687; }
+.about-assurance-card p { margin: 12px 0 0; color: #4e6067; }
+@media (max-width: 680px) {
+  .about-mission blockquote { padding-left: 18px; }
+  .about-what .about-services { grid-template-columns: 1fr; }
+  .about-assurance > .wrap { grid-template-columns: 1fr; gap: 20px; }
+  .about-assurance-card { padding: 24px 22px; }
+}
