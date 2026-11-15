@@ -1,0 +1,106 @@
+/* Signature motion layer (homepage only). Every hidden state is gated on
+   .sig-ready (set by signature.js), so without JS everything shows. */
+
+/* ---------- Hero ---------- */
+.ia-home-hero { overflow: hidden; }
+.ia-home-hero .hero-photo { will-change: transform; transform: scale(1.08); transition: transform .6s cubic-bezier(.2, .7, .2, 1); }
+.ia-home-hero .hero-photo img { animation: sig-kenburns 28s ease-in-out infinite alternate; transform-origin: 66% 50%; }
+@keyframes sig-kenburns { from { transform: scale(1); } to { transform: scale(1.09); } }
+
+/* Data-flow lines: light pulses travelling down the aisle */
+.sig-flow { position: absolute; inset: 0; z-index: 1; pointer-events: none; will-change: transform; transition: transform .6s cubic-bezier(.2, .7, .2, 1); }
+.sig-flow svg { width: 100%; height: 100%; display: block; }
+.sig-flow .rail { fill: none; stroke: rgba(169, 230, 247, .10); stroke-width: 1; }
+.sig-flow .pulse { fill: none; stroke: url(#sigPulse); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 70 930; stroke-dashoffset: 1000; filter: url(#sigGlow); animation: sig-pulse 5.5s linear infinite; }
+.sig-flow .pulse.p2 { animation-duration: 7s; animation-delay: -2.1s; }
+.sig-flow .pulse.p3 { animation-duration: 6.2s; animation-delay: -4.3s; }
+.sig-flow .pulse.p4 { animation-duration: 8s; animation-delay: -1.2s; }
+.sig-flow .pulse.p5 { animation-duration: 6.8s; animation-delay: -3.4s; }
+.sig-flow .node { fill: #a9e6f7; opacity: .0; animation: sig-node 5.5s ease-in-out infinite; }
+@keyframes sig-pulse { to { stroke-dashoffset: 0; } }
+@keyframes sig-node { 0%, 70%, 100% { opacity: 0; } 82% { opacity: .9; } }
+.ia-home-hero .hero-photo { z-index: 0; }
+.ia-home-hero .hero-shade { z-index: 1; }
+.sig-flow { z-index: 2; }
+.ia-home-hero .hero-grid { position: relative; z-index: 3; }
+
+/* Entrance */
+.ia-home-hero h1 .sig-line, .ia-home-hero h1 .sig-line-in { color: inherit; }
+.sig-line { display: block; overflow: hidden; padding-bottom: .04em; }
+.sig-line-in { display: block; }
+.sig-ready:not(.sig-reduce) .sig-line-in { transform: translateY(105%); transition: transform 1s cubic-bezier(.16, 1, .3, 1); }
+.sig-ready.sig-loaded .sig-line-in { transform: none; }
+.sig-ready:not(.sig-reduce) .ia-home-hero .kicker,
+.sig-ready:not(.sig-reduce) .ia-home-hero .hero-copy,
+.sig-ready:not(.sig-reduce) .ia-home-hero .actions { opacity: 0; transform: translateY(18px); transition: opacity .9s ease, transform .9s cubic-bezier(.16, 1, .3, 1); }
+.sig-ready:not(.sig-reduce) .ia-home-hero .hero-copy { transition-delay: .55s; }
+.sig-ready:not(.sig-reduce) .ia-home-hero .actions { transition-delay: .72s; }
+.sig-ready.sig-loaded .ia-home-hero .kicker,
+.sig-ready.sig-loaded .ia-home-hero .hero-copy,
+.sig-ready.sig-loaded .ia-home-hero .actions { opacity: 1; transform: none; }
+
+/* Scroll cue */
+.sig-cue { position: absolute; left: 50%; bottom: 22px; z-index: 3; width: 22px; height: 36px; margin-left: -11px; border: 1.5px solid rgba(169, 230, 247, .5); border-radius: 12px; }
+.sig-cue::after { content: ""; position: absolute; left: 50%; top: 7px; width: 3px; height: 7px; margin-left: -1.5px; border-radius: 2px; background: #a9e6f7; animation: sig-cue 1.8s ease-in-out infinite; }
+@keyframes sig-cue { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(12px); opacity: 0; } 100% { opacity: 0; } }
+@media (max-width: 680px) { .sig-cue { display: none; } }
+
+/* ---------- Scroll reveals ---------- */
+.sig-ready:not(.sig-reduce) .sig-reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .9s cubic-bezier(.16, 1, .3, 1); }
+.sig-ready .sig-reveal.is-in { opacity: 1; transform: none; }
+
+/* Photo wipe-in for split photos */
+.sig-ready:not(.sig-reduce) .hd-split-photo.sig-reveal { opacity: 1; transform: none; clip-path: inset(0 0 100% 0); transition: clip-path 1.2s cubic-bezier(.65, 0, .35, 1); }
+.sig-ready:not(.sig-reduce) .hd-split-photo.sig-reveal.is-in { clip-path: inset(0 0 0 0); }
+.hd-split-photo { position: relative; }
+
+/* Stat strip: accent bar grows under each stat */
+.hd-stat { position: relative; }
+.hd-stat::after { content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: linear-gradient(90deg, var(--cyan), transparent); transform: scaleX(0); transform-origin: left; transition: transform 1.1s cubic-bezier(.16, 1, .3, 1) .2s; }
+.hd-stat.is-in::after { transform: scaleX(1); }
+.hd-stat:not(:first-child)::after { left: 24px; }
+@media (max-width: 860px) { .hd-stat:nth-child(odd)::after { left: 0; } .hd-stat:nth-child(even)::after { left: 16px; } }
+
+/* Service cards: a scan line sweeps the photo on hover */
+.hd-card-photo { position: relative; }
+.hd-card-photo::after { content: ""; position: absolute; left: 0; right: 0; top: -30%; height: 30%; background: linear-gradient(180deg, transparent, rgba(83, 195, 223, .35), transparent); opacity: 0; pointer-events: none; }
+.hd-card:hover .hd-card-photo::after, .hd-card:focus-visible .hd-card-photo::after { animation: sig-scan 1.1s ease-out; }
+@keyframes sig-scan { 0% { top: -30%; opacity: 1; } 100% { top: 100%; opacity: 0; } }
+.hd-card { position: relative; }
+.hd-card::before { content: ""; position: absolute; left: 0; top: 0; height: 2px; width: 100%; background: var(--cyan); transform: scaleX(0); transform-origin: left; transition: transform .45s cubic-bezier(.16, 1, .3, 1); z-index: 1; }
+.hd-card:hover::before, .hd-card:focus-visible::before { transform: scaleX(1); }
+
+/* Wireless: signal rings from the access point on the survey photo */
+.sig-rings { position: absolute; left: 80%; top: 11%; width: 0; height: 0; z-index: 1; pointer-events: none; }
+.sig-rings i { position: absolute; left: -10px; top: -10px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(169, 230, 247, .9); animation: sig-ring 3s cubic-bezier(.2, .6, .3, 1) infinite; opacity: 0; }
+.sig-rings i:nth-child(2) { animation-delay: 1s; }
+.sig-rings i:nth-child(3) { animation-delay: 2s; }
+.sig-rings::before { content: ""; position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: #a9e6f7; box-shadow: 0 0 14px 4px rgba(83, 195, 223, .7); }
+@keyframes sig-ring { 0% { transform: scale(.4); opacity: .95; } 100% { transform: scale(9); opacity: 0; } }
+
+/* Wireless steps + start sequence: a progress line draws through the steps */
+.hd-steps { position: relative; }
+.hd-steps::before { content: ""; position: absolute; left: 21px; top: 22px; bottom: 22px; width: 2px; background: var(--deep-blue); opacity: .35; transform: scaleY(0); transform-origin: top; transition: transform 1.4s cubic-bezier(.65, 0, .35, 1) .2s; }
+.hd-steps.is-in::before { transform: scaleY(1); }
+.hd-steps li::before { position: relative; z-index: 1; }
+.sig-ready:not(.sig-reduce) .project-start-sequence::before { transform: scaleX(0); transform-origin: left; transition: transform 1.6s cubic-bezier(.65, 0, .35, 1) .2s; }
+.sig-ready .project-start-sequence.is-in::before { transform: none; }
+
+/* Checkmarks draw in */
+.sig-ready:not(.sig-reduce) .hd-checks li::before { transform: rotate(-45deg) scale(0); transition: transform .5s cubic-bezier(.34, 1.56, .64, 1) .25s; }
+.sig-ready .hd-checks li.is-in::before { transform: rotate(-45deg) scale(1); }
+
+/* Buttons: light sheen on hover */
+.ia-home-hero .btn, .close-grid .btn { position: relative; overflow: hidden; }
+.ia-home-hero .btn::after, .close-grid .btn::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .45), transparent); transform: skewX(-20deg); opacity: 0; }
+.ia-home-hero .btn:hover::after, .close-grid .btn:hover::after { animation: sig-sheen .8s ease; }
+@keyframes sig-sheen { 0% { left: -60%; opacity: 1; } 100% { left: 130%; opacity: 0; } }
+
+/* Scroll progress */
+.sig-progress { position: fixed; left: 0; top: 0; z-index: 1000; height: 2px; width: 100%; background: linear-gradient(90deg, var(--deep-blue), var(--cyan)); transform: scaleX(0); transform-origin: left; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ia-home-hero .hero-photo img, .sig-flow .pulse, .sig-flow .node, .sig-rings i, .sig-cue::after { animation: none; }
+  .sig-flow .pulse { display: none; }
+  .sig-progress { display: none; }
+}
