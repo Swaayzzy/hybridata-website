@@ -11,7 +11,7 @@ done
 
 # GitHub Pages ignores _headers, so staging would send no CSP. Mirror the _headers policy as a meta tag.
 # frame-ancestors is left out on purpose: a meta tag cannot enforce it (only a real header can).
-CSP="default-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; img-src 'self'; connect-src 'self'; font-src 'self'; style-src 'self'; script-src 'self'"
+CSP="default-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; img-src 'self'; connect-src 'self'; font-src 'self'; style-src 'self'; script-src 'self'"
 for f in *.html; do
   grep -q 'http-equiv="Content-Security-Policy"' "$f" && continue
   sed -i "s#<meta charset=\"utf-8\">#<meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"$CSP\">#" "$f"

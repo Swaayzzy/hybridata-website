@@ -9,3 +9,6 @@
 /* Home services path: every step's number sits on the line (the old 5-step zig-zag offsets no longer fit 11 steps) */
 .home-pathway-step-2, .home-pathway-step-3, .home-pathway-step-4 { margin-left: 0; }
 @media (min-width: 681px) { .home-pathway::before { left: 28px; } }
+
+/* Netlify Forms spam trap: never shown */
+.hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
