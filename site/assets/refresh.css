@@ -1,4 +1,4 @@
-/* Homepage layout pass (2026-11-15). Loaded on index.html only. */
+/* Site refresh (2026-11-15): shared components for the redesigned pages. */
 
 /* Stat strip */
 .hd-stats { background: var(--panel); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -76,3 +76,13 @@
   .hd-card:hover { transform: none; }
   .hd-card:hover .hd-card-photo img { transform: none; }
 }
+
+/* Service page parts */
+.hd-checks-2 { grid-template-columns: 1fr 1fr; column-gap: 28px; }
+.section-light .hd-checks li { color: inherit; opacity: .85; }
+.hd-tiles { list-style: none; margin: 40px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.hd-tiles li { background: var(--zinc); padding: 26px 24px; display: flex; flex-direction: column; gap: 6px; }
+.hd-tiles strong { font-family: var(--display); font-weight: 700; font-size: 24px; line-height: 1.1; text-transform: uppercase; color: var(--white); }
+.hd-tiles span { color: var(--muted); font-size: 15px; line-height: 1.5; }
+@media (max-width: 860px) { .hd-tiles { grid-template-columns: 1fr 1fr; } .hd-checks-2 { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .hd-tiles { grid-template-columns: 1fr; } }
