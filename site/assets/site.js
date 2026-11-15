@@ -102,24 +102,35 @@ function buildProjectMailto(data, recipients) {
 
 const form = document.querySelector('#survey-form');
 if (form) {
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const status = document.querySelector('#form-status');
     const button = form.querySelector('button[type=submit]');
     status.className = 'form-status';
-    status.textContent = 'Validating project details…';
     if (!form.reportValidity()) {
       status.className = 'form-status error';
       status.textContent = 'Please complete the required project details.';
       return;
     }
-    const data = Object.fromEntries(new FormData(form).entries());
-    const recipients = form.dataset.mailtoRecipients;
-    const mailtoUrl = buildProjectMailto(data, recipients);
-    form.dataset.generatedMailto = mailtoUrl;
-    status.className = 'form-status success';
-    status.textContent = 'Your email app is opening. Review the prepared message, then choose Send.';
-    button.disabled = false;
-    window.location.href = mailtoUrl;
+    const fd = new FormData(form);
+    button.disabled = true;
+    status.textContent = 'Sending…';
+    try {
+      // Netlify Forms: post to the site itself; Netlify stores it and emails the team.
+      const res = await fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fd).toString() });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      form.reset();
+      status.className = 'form-status success';
+      status.textContent = 'Thank you. Your request was sent to our team, and we will reply by email or phone.';
+      button.disabled = false;
+    } catch (err) {
+      // Never lose a lead: fall back to a prepared email.
+      const data = Object.fromEntries(fd.entries());
+      const mailtoUrl = buildProjectMailto(data, form.dataset.fallbackEmail);
+      status.className = 'form-status error';
+      status.textContent = 'The form could not be sent just now. Your email app is opening with the details filled in, so you can send it from there.';
+      button.disabled = false;
+      window.location.href = mailtoUrl;
+    }
   });
 }
